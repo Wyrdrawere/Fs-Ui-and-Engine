@@ -5,18 +5,17 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Compile Include="Config.fs" />
-      <Compile Include="Extensions.fs" />
-      <Compile Include="Maybe.fs" />
-      <Compile Include="GMap.fs" />
-      <Compile Include="AssetLoader.fs" />
-      <Compile Include="Input.fs" />
-      <Compile Include="UIUtility.fs" />
-      <Compile Include="Layout.fs" />
-      <Compile Include="Element.fs" />
-      <Compile Include="Widget.fs" />
-      <Compile Include="UI.fs" />
-      <Content Include=".gitignore" />
+      <Compile Include="Engine\AssetLoader.fs" />
+      <Compile Include="Engine\Config.fs" />
+      <Compile Include="Engine\Element.fs" />
+      <Compile Include="Engine\Extensions.fs" />
+      <Compile Include="Engine\Widget.fs" />
+      <Compile Include="Engine\UIUtility.fs" />
+      <Compile Include="Engine\UI.fs" />
+      <Compile Include="Engine\Maybe.fs" />
+      <Compile Include="Engine\Layout.fs" />
+      <Compile Include="Engine\Input.fs" />
+      <Compile Include="Engine\GMap.fs" />
     </ItemGroup>
 
     <ItemGroup>
