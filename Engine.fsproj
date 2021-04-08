@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netcoreapp3.1</TargetFramework>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <Compile Include="Config.fs" />
+      <Compile Include="Extensions.fs" />
+      <Compile Include="Maybe.fs" />
+      <Compile Include="GMap.fs" />
+      <Compile Include="AssetLoader.fs" />
+      <Compile Include="Input.fs" />
+      <Compile Include="UIUtility.fs" />
+      <Compile Include="Layout.fs" />
+      <Compile Include="Element.fs" />
+      <Compile Include="Widget.fs" />
+      <Compile Include="UI.fs" />
+      <Content Include=".gitignore" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="MonoGame.Content.Builder" Version="3.7.0.9" />
+        <PackageReference Include="MonoGame.Framework.DesktopGL.Core" Version="3.8.0.13" />
+        <PackageReference Include="MonoGame.Framework.WindowsDX" Version="3.7.1.189" />
+    </ItemGroup>
+
+</Project>
