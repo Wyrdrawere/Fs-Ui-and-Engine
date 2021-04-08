@@ -1,7 +1,5 @@
 ﻿namespace Engine
 
-//test
-
 //todo: no more namespaces inside namespaces, redefine everything as namespace then module
 module Config =
     //todo: remove game specific stuff from here 
