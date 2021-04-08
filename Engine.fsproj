@@ -5,8 +5,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Compile Include="src\AssetLoader.fs" />
       <Compile Include="src\Config.fs" />
+      <Compile Include="src\AssetLoader.fs" />
       <Compile Include="src\Extensions.fs" />
       <Compile Include="src\Maybe.fs" />
       <Compile Include="src\GMap.fs" />
