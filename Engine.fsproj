@@ -5,12 +5,12 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Compile Include="src\AssetLoader.fs" />
       <Compile Include="src\Config.fs" />
+      <Compile Include="src\AssetLoader.fs" />
       <Compile Include="src\Extensions.fs" />
       <Compile Include="src\Maybe.fs" />
       <Compile Include="src\GMap.fs" />
-      <Compile Include="src\KeyInput.fs" />
+      <Compile Include="src\Input.fs" />
       <Compile Include="src\UIUtility.fs" />
       <Compile Include="src\Layout.fs" />
       <Compile Include="src\Element.fs" />

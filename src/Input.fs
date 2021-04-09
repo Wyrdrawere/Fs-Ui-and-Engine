@@ -5,7 +5,7 @@ namespace Engine.System
 open Microsoft.Xna.Framework.Input
 
 
-type KeyInput =
+type Input =
     | KeyPressed of Keys
     | KeyReleased of Keys
     

@@ -23,7 +23,7 @@ type IWidget<'appEvent, 'uiEvent> =
     abstract initView: Unit -> Element
     abstract lastBox: Unit -> Box
     abstract update: GameTime -> EventQueue<Event<'appEvent, 'uiEvent>> -> Unit
-    abstract receive: EventQueue<KeyInput> -> EventQueue<Event<'appEvent, 'uiEvent>> -> Unit
+    abstract receive: EventQueue<Input> -> EventQueue<Event<'appEvent, 'uiEvent>> -> Unit
     abstract view: Unit -> Element
     
 [<AbstractClass>]        
@@ -31,7 +31,7 @@ type Widget<'widgetState, 'appEvent, 'uiEvent when 'widgetState :> WsBase>(state
         
     
     abstract update: GameTime -> EventQueue<Event<'appEvent, 'uiEvent>> -> Unit
-    abstract receive: EventQueue<KeyInput> -> EventQueue<Event<'appEvent, 'uiEvent>> -> Unit
+    abstract receive: EventQueue<Input> -> EventQueue<Event<'appEvent, 'uiEvent>> -> Unit
     abstract view: Unit -> Element
     
     
@@ -63,7 +63,7 @@ type Widget<'widgetState, 'appEvent, 'uiEvent when 'widgetState :> WsBase>(state
             this.initView()
         override this.update(gameTime: GameTime)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
             this.update(gameTime)(queue)
-        override this.receive(input: EventQueue<KeyInput>)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
+        override this.receive(input: EventQueue<Input>)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
             this.receive(input)(queue)
         override this.view() =
             this :> Element
@@ -125,7 +125,7 @@ type Panel<'appEvent, 'uiEvent>(state: WsPanel<'appEvent, 'uiEvent>) =
             for child in state.Children do
                 child.update(gameTime)(queue)
             
-        override this.receive(input: EventQueue<KeyInput>)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
+        override this.receive(input: EventQueue<Input>)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
             for child in state.Children do
                 child.receive(input)(queue)
               
@@ -165,7 +165,7 @@ type Label<'appEvent, 'uiEvent>(state: WsLabel) =
             then
                 state.LastLength <- newLength
             
-        override this.receive(_: EventQueue<KeyInput>)(_: EventQueue<Event<'appEvent, 'uiEvent>>) = ()
+        override this.receive(_: EventQueue<Input>)(_: EventQueue<Event<'appEvent, 'uiEvent>>) = ()
             
               
         override this.view() =
@@ -192,7 +192,7 @@ type Image<'appEvent, 'uiEvent>(state: WsImage) =
         
         override this.update(_: GameTime)(_: EventQueue<Event<'appEvent, 'uiEvent>>) = ()
             
-        override this.receive(_: EventQueue<KeyInput>)(_: EventQueue<Event<'appEvent, 'uiEvent>>) = ()
+        override this.receive(_: EventQueue<Input>)(_: EventQueue<Event<'appEvent, 'uiEvent>>) = ()
               
         override this.view() =
             image state.Parameters state.Path
@@ -338,7 +338,7 @@ type Button<'appEvent, 'uiEvent>(state: WsButton<'appEvent, 'uiEvent>) =
         override this.update(_: GameTime)(_: EventQueue<Event<'appEvent, 'uiEvent>>) =
             ()
             
-        override this.receive(input: EventQueue<KeyInput>)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
+        override this.receive(input: EventQueue<Input>)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
             let state =
                 match state.buttonState with
                 | LabelButton(button) -> button
@@ -355,6 +355,7 @@ type Button<'appEvent, 'uiEvent>(state: WsButton<'appEvent, 'uiEvent>) =
                     | None -> ()
             
             //todo: buttons stay pressed even when switching to other button. that one gets pressed then, so half right. investigate and fix
+            //todo: removing delay stuff made it so that press gets removed on switch, but the other button does not become pressed
             if input.read() |> List.contains(KeyPressed(Keys.Enter)) && state.OnClick |> Option.isSome
             then
                 state.Pressed <- true
@@ -483,6 +484,7 @@ type Menu<'appEvent, 'uiEvent>(state: WsMenu<'appEvent, 'uiEvent>) =
     inherit Widget<WsMenu<'appEvent, 'uiEvent>, 'appEvent, 'uiEvent>(state) with
         
         //todo: find the right place for this
+        //todo: right place is probably extension method for System.Math
         let roundByBase(value: int, base_: int) =
             if not (value / base_ = 0)
             then value + (base_ - value % base_)  
@@ -509,7 +511,7 @@ type Menu<'appEvent, 'uiEvent>(state: WsMenu<'appEvent, 'uiEvent>) =
                 for child in state.Children do
                     child.update(gameTime)(queue)
             
-        override this.receive(input: EventQueue<KeyInput>)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
+        override this.receive(input: EventQueue<Input>)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
             let handleScroll() =
                 
                 if input.read() |> List.contains(KeyPressed(Keys.Up)) && state.AnchorY + state.CursorY > 0 
@@ -613,9 +615,6 @@ type Menu<'appEvent, 'uiEvent>(state: WsMenu<'appEvent, 'uiEvent>) =
             //todo: think about menu modes
             //todo: make clear which direction is scrollable
                 
-            
-            
-              
         override this.view() =
                 
             let itemPanel(items: Element list) =
