@@ -3,6 +3,7 @@ namespace Engine
 namespace Engine.UI
 
 open Engine
+open Engine.System
 open Microsoft.Xna.Framework
 open Microsoft.Xna.Framework.Graphics
 open Microsoft.Xna.Framework.Input
@@ -22,7 +23,7 @@ type IWidget<'appEvent, 'uiEvent> =
     abstract initView: Unit -> Element
     abstract lastBox: Unit -> Box
     abstract update: GameTime -> EventQueue<Event<'appEvent, 'uiEvent>> -> Unit
-    abstract receive: Input -> EventQueue<Event<'appEvent, 'uiEvent>> -> Unit
+    abstract receive: EventQueue<KeyInput> -> EventQueue<Event<'appEvent, 'uiEvent>> -> Unit
     abstract view: Unit -> Element
     
 [<AbstractClass>]        
@@ -30,7 +31,7 @@ type Widget<'widgetState, 'appEvent, 'uiEvent when 'widgetState :> WsBase>(state
         
     
     abstract update: GameTime -> EventQueue<Event<'appEvent, 'uiEvent>> -> Unit
-    abstract receive: Input -> EventQueue<Event<'appEvent, 'uiEvent>> -> Unit
+    abstract receive: EventQueue<KeyInput> -> EventQueue<Event<'appEvent, 'uiEvent>> -> Unit
     abstract view: Unit -> Element
     
     
@@ -62,7 +63,7 @@ type Widget<'widgetState, 'appEvent, 'uiEvent when 'widgetState :> WsBase>(state
             this.initView()
         override this.update(gameTime: GameTime)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
             this.update(gameTime)(queue)
-        override this.receive(input: Input)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
+        override this.receive(input: EventQueue<KeyInput>)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
             this.receive(input)(queue)
         override this.view() =
             this :> Element
@@ -124,7 +125,7 @@ type Panel<'appEvent, 'uiEvent>(state: WsPanel<'appEvent, 'uiEvent>) =
             for child in state.Children do
                 child.update(gameTime)(queue)
             
-        override this.receive(input: Input)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
+        override this.receive(input: EventQueue<KeyInput>)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
             for child in state.Children do
                 child.receive(input)(queue)
               
@@ -164,7 +165,7 @@ type Label<'appEvent, 'uiEvent>(state: WsLabel) =
             then
                 state.LastLength <- newLength
             
-        override this.receive(_: Input)(_: EventQueue<Event<'appEvent, 'uiEvent>>) = ()
+        override this.receive(_: EventQueue<KeyInput>)(_: EventQueue<Event<'appEvent, 'uiEvent>>) = ()
             
               
         override this.view() =
@@ -191,7 +192,7 @@ type Image<'appEvent, 'uiEvent>(state: WsImage) =
         
         override this.update(_: GameTime)(_: EventQueue<Event<'appEvent, 'uiEvent>>) = ()
             
-        override this.receive(_: Input)(_: EventQueue<Event<'appEvent, 'uiEvent>>) = ()
+        override this.receive(_: EventQueue<KeyInput>)(_: EventQueue<Event<'appEvent, 'uiEvent>>) = ()
               
         override this.view() =
             image state.Parameters state.Path
@@ -337,7 +338,7 @@ type Button<'appEvent, 'uiEvent>(state: WsButton<'appEvent, 'uiEvent>) =
         override this.update(_: GameTime)(_: EventQueue<Event<'appEvent, 'uiEvent>>) =
             ()
             
-        override this.receive(input: Input)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
+        override this.receive(input: EventQueue<KeyInput>)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
             let state =
                 match state.buttonState with
                 | LabelButton(button) -> button
@@ -350,31 +351,19 @@ type Button<'appEvent, 'uiEvent>(state: WsButton<'appEvent, 'uiEvent>) =
                     match state.OnClick with
                     | Some event ->
                         clicked <- true
-                        state.Pressed <- true
-                        queue.push(SetDelay)
                         queue.push(event)
                     | None -> ()
             
-            state.reset()
+            //todo: buttons stay pressed even when switching to other button. that one gets pressed then, so half right. investigate and fix
+            if input.read() |> List.contains(KeyPressed(Keys.Enter)) && state.OnClick |> Option.isSome
+            then
+                state.Pressed <- true
             
-            match input.mouse with
-            | Some(mouseState) ->
-                if state.LastBox.contains(mouseState)
-                then state.Hovered <- true
-                    
-                if state.Hovered && (mouseState.LeftButton = ButtonState.Pressed)
-                then
-                    click()
-                    
-            | None -> ()
+            if input.read() |> List.contains(KeyReleased(Keys.Enter))
+            then
+                state.Pressed <- false
+                click()
             
-            match input.keyboard with
-            | Some(keyboardState) ->
-                state.Selected <- true
-                if keyboardState.IsKeyDown(Keys.Enter)
-                then
-                    click()
-            | None -> ()
             
             
         override this.view() =
@@ -520,92 +509,86 @@ type Menu<'appEvent, 'uiEvent>(state: WsMenu<'appEvent, 'uiEvent>) =
                 for child in state.Children do
                     child.update(gameTime)(queue)
             
-        override this.receive(input: Input)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
+        override this.receive(input: EventQueue<KeyInput>)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
             let handleScroll() =
-                let scroll() =
-                    queue.push(SetDelay)
                 
-                match input.keyboard with
-                | Some(keyboardState) ->
-                    if keyboardState.IsKeyDown(Keys.Up) && state.AnchorY + state.CursorY > 0 
-                    then
-                        scroll()
-                        if state.CursorY > 0
-                        then state.CursorY <- state.CursorY - 1
-                        else state.AnchorY <- state.AnchorY - 1
-                        
-                    let maxY =
-                        match (state.Orientation, state.OffScrollDepth) with
-                        | (Horizontal, Some(depth)) ->
-                            depth
-                        | (Vertical, Some(depth)) ->
-                            int <| System.Math.Ceiling ((float state.Children.Length) / (float depth))
-                        | (Horizontal, None) ->
-                            state.Rows
-                        | (Vertical, None) ->
-                            int <| System.Math.Ceiling ((float state.Children.Length) / (float state.Cols))
-                                             
-                    if keyboardState.IsKeyDown(Keys.Down) && state.AnchorY + state.CursorY < maxY - 1
-                    then
-                        scroll()
-                        if state.CursorY = state.Rows - 1
-                        then
-                            state.AnchorY <- state.AnchorY + 1
-                        else
-                            state.CursorY <- state.CursorY + 1
+                if input.read() |> List.contains(KeyPressed(Keys.Up)) && state.AnchorY + state.CursorY > 0 
+                then
+                    if state.CursorY > 0
+                    then state.CursorY <- state.CursorY - 1
+                    else state.AnchorY <- state.AnchorY - 1
                     
-                    if keyboardState.IsKeyDown(Keys.Left) && state.AnchorX + state.CursorX > 0 
+                let maxY =
+                    match (state.Orientation, state.OffScrollDepth) with
+                    | (Horizontal, Some(depth)) ->
+                        depth
+                    | (Vertical, Some(depth)) ->
+                        int <| System.Math.Ceiling ((float state.Children.Length) / (float depth))
+                    | (Horizontal, None) ->
+                        state.Rows
+                    | (Vertical, None) ->
+                        int <| System.Math.Ceiling ((float state.Children.Length) / (float state.Cols))
+                                             
+                if input.read() |> List.contains(KeyPressed(Keys.Down)) && state.AnchorY + state.CursorY < maxY - 1
+                then
+                    if state.CursorY = state.Rows - 1
                     then
-                        scroll()
-                        if state.CursorX > 0
-                        then state.CursorX <- state.CursorX - 1
-                        else state.AnchorX <- state.AnchorX - 1
+                        state.AnchorY <- state.AnchorY + 1
+                    else
+                        state.CursorY <- state.CursorY + 1
+                    
+                if input.read() |> List.contains(KeyPressed(Keys.Left)) && state.AnchorX + state.CursorX > 0 
+                then
+                    if state.CursorX > 0
+                    then state.CursorX <- state.CursorX - 1
+                    else state.AnchorX <- state.AnchorX - 1
+                     
+                let maxX =
+                    match (state.Orientation, state.OffScrollDepth) with
+                    | (Horizontal, Some(depth)) ->
+                        int <| System.Math.Ceiling ((float state.Children.Length) / (float depth))
+                    | (Vertical, Some(depth)) ->
+                        depth
+                    | (Horizontal, None) ->
+                        int <| System.Math.Ceiling ((float state.Children.Length) / (float state.Rows))
+                    | (Vertical, None) ->
+                        state.Cols
                         
-                    let maxX =
-                        match (state.Orientation, state.OffScrollDepth) with
-                        | (Horizontal, Some(depth)) ->
-                            int <| System.Math.Ceiling ((float state.Children.Length) / (float depth))
-                        | (Vertical, Some(depth)) ->
-                            depth
-                        | (Horizontal, None) ->
-                            int <| System.Math.Ceiling ((float state.Children.Length) / (float state.Rows))
-                        | (Vertical, None) ->
-                            state.Cols
                         
-                        
-                    if keyboardState.IsKeyDown(Keys.Right) && state.AnchorX + state.CursorX < maxX - 1
+                if input.read() |> List.contains(KeyPressed(Keys.Right)) && state.AnchorX + state.CursorX < maxX - 1
+                then
+                    if state.CursorX = state.Cols - 1
                     then
-                        scroll()
-                        if state.CursorX = state.Cols - 1
-                        then
-                            state.AnchorX <- state.AnchorX + 1
-                        else
-                            state.CursorX <- state.CursorX + 1
-                | None -> ()
+                        state.AnchorX <- state.AnchorX + 1
+                    else
+                        state.CursorX <- state.CursorX + 1
+                
             
-            //todo: rewrite as fold with index = acc, so end result is unit instead of unit list         
+            //todo: rewrite as fold with index = acc, so end result is unit instead of unit list
+            //todo: update: this whole section needs an update anyways       
             let passToChildren(cursorIndex: int option) =
                 state.Children
                 |> List.mapi(fun index child ->
-                    child.receive
-                        ({ input with keyboard = cursorIndex |> Option.bind(fun cursor -> if cursor = index then input.keyboard else None) })
-                        (queue))
+                    match cursorIndex with
+                    | Some(cursor) when cursor = index -> child.receive(input)(queue)
+                    | _ -> child.receive(EventQueue())(queue))
                 |> ignore
-                
+            
             let lockUnlock(key: Keys) =
-                match input.keyboard with
-                | Some(keyboardState) ->
-                    let tmp = keyboardState.IsKeyDown(key)
-                    if tmp
-                    then
-                        state.InputMode <-
-                            match state.InputMode with
-                            | Direct -> Direct
-                            | Locking(value) -> Locking(not value)
-                            | AsPanel -> AsPanel
-                        queue.push(SetDelay)
-                    tmp
-                | None -> false
+                let mutable tmp = false
+                state.InputMode <-
+                    match state.InputMode with
+                    | Direct -> Direct
+                    | Locking(value) ->
+                        if input.read() |> List.contains(KeyReleased(key))
+                        then
+                            tmp <- not value
+                            Locking(not value)
+                        else
+                            tmp <- value
+                            Locking(value)
+                    | AsPanel -> AsPanel     
+                tmp
               
             if state.Active
             then

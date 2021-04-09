@@ -2,6 +2,7 @@ namespace Engine
 
 namespace Engine.UI
 
+open Engine.System
 open Microsoft.Xna.Framework
 open Microsoft.Xna.Framework.Graphics
 
@@ -29,7 +30,7 @@ type UI<'appState, 'appEvent, 'uiState, 'uiEvent>(initialUIState: 'uiState, box:
             layouts <- layouts |> Map.add(key)(layout)
             this.Widget.passBox(layout)
             
-    member private this.handleDelayAndUpdate(gameTime: GameTime, input: Input) =
+    member private this.handleDelayAndUpdate(gameTime: GameTime, input: EventQueue<KeyInput>) =
         let delta = (float32 gameTime.ElapsedGameTime.Milliseconds) / 1000.0f
         if this.Delay > delta
         then
@@ -69,8 +70,8 @@ type UI<'appState, 'appEvent, 'uiState, 'uiEvent>(initialUIState: 'uiState, box:
     abstract drawExtra: SpriteBatch -> 'uiState -> Unit
     default this.drawExtra(_: SpriteBatch)(_: 'uiState) = ()
     
-    abstract update: 'appState * GameTime * Input -> EventQueue<'appEvent>
-    default this.update(appState: 'appState, gameTime: GameTime, input: Input) =
+    abstract update: 'appState * GameTime * EventQueue<KeyInput> -> EventQueue<'appEvent>
+    default this.update(appState: 'appState, gameTime: GameTime, input: EventQueue<KeyInput>) =
         
         currentState <- this.synchronize(appState)(currentState)
         

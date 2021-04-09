@@ -10,12 +10,13 @@
       <Compile Include="src\Extensions.fs" />
       <Compile Include="src\Maybe.fs" />
       <Compile Include="src\GMap.fs" />
-      <Compile Include="src\Input.fs" />
+      <Compile Include="src\KeyInput.fs" />
       <Compile Include="src\UIUtility.fs" />
       <Compile Include="src\Layout.fs" />
       <Compile Include="src\Element.fs" />
       <Compile Include="src\Widget.fs" />
       <Compile Include="src\UI.fs" />
+      <Compile Include="src\State.fs" />
     </ItemGroup>
 
     <ItemGroup>
