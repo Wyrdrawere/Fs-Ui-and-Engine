@@ -5,8 +5,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Compile Include="src\AssetLoader.fs" />
       <Compile Include="src\Config.fs" />
+      <Compile Include="src\AssetLoader.fs" />
       <Compile Include="src\Extensions.fs" />
       <Compile Include="src\Maybe.fs" />
       <Compile Include="src\GMap.fs" />
@@ -16,6 +16,7 @@
       <Compile Include="src\Element.fs" />
       <Compile Include="src\Widget.fs" />
       <Compile Include="src\UI.fs" />
+      <Compile Include="src\State.fs" />
     </ItemGroup>
 
     <ItemGroup>

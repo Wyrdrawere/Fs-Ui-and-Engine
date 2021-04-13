@@ -39,23 +39,11 @@ module Tree =
         | Node(a, ts) ->
             Node(f a, ts |> List.map(map f))
 
-type Input =
-    { keyboard: KeyboardState option
-      mouse: MouseState option }
-
 type Event<'appEvent, 'uiEvent> =
     | SetDelay
     | AppEvent of 'appEvent
     | UIEvent of 'uiEvent
     
-
-type EventQueue<'event>() =
-    let mutable queue: 'event List = List.empty
-    
-    member this.push(event: 'event) = queue <- event :: queue
-    
-    member this.read() = List.rev queue
-
 module DrawPrimitive =
 
     let rectangle(spriteBatch: SpriteBatch)(color: Color, box: Box) =

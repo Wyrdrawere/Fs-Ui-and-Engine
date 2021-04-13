@@ -2,6 +2,7 @@ namespace Engine
 
 namespace Engine.UI
 
+open Engine.System
 open Microsoft.Xna.Framework
 open Microsoft.Xna.Framework.Graphics
 
@@ -15,8 +16,6 @@ type UI<'appState, 'appEvent, 'uiState, 'uiEvent>(initialUIState: 'uiState, box:
     let mutable layouts = Map.empty
     let mutable currentLayout = 0
       
-    //todo: find way to make delay another let and make widget write-only from outside/inherited classes
-    member val Delay = Engine.Config.inputDelay with get, set
     member val Widget = Panel(WsPanel.New([Label(WsLabel.New("UI not implemented"))])) :> IWidget<'appEvent, 'uiEvent> with get, set
     
     member private this.updateLayout() =
@@ -29,23 +28,11 @@ type UI<'appState, 'appEvent, 'uiState, 'uiEvent>(initialUIState: 'uiState, box:
             layouts <- layouts |> Map.add(key)(layout)
             this.Widget.passBox(layout)
             
-    member private this.handleDelayAndUpdate(gameTime: GameTime, input: Input) =
-        let delta = (float32 gameTime.ElapsedGameTime.Milliseconds) / 1000.0f
-        if this.Delay > delta
-        then
-            this.Delay <- this.Delay - delta
-        else
-            this.Delay <- 0.0f
-            this.Widget.receive(input)(widgetQueue)
-    
     member private this.handleWidgetEvents() =
-        let mutable delayed = false
+        //todo: make appQueue a ui value, that functions can push events on, to make global-ish events like "closeMenu" possible
         let mutable appQueue = EventQueue()
         for event in widgetQueue.read() do
             match event with
-            | SetDelay when not delayed ->
-                this.Delay <- Engine.Config.inputDelay
-                delayed <- true
             | AppEvent(event) -> appQueue.push(event)
             | UIEvent(event) -> this.pushUIEvent(event)
             | _ -> ()
@@ -64,20 +51,20 @@ type UI<'appState, 'appEvent, 'uiState, 'uiEvent>(initialUIState: 'uiState, box:
     abstract handleUIEvent: 'uiEvent -> 'uiState -> 'uiState
     
     //todo: this exists to add uiEvents based on appEvents. decide if buttons should be allowed to push multiple events, then this could go
+    //todo: decision made, they should be able to push multiple, make it happen
     abstract inspectAppEvents: EventQueue<'appEvent> -> EventQueue<'appEvent>
     default this.inspectAppEvents(queue: EventQueue<'appEvent>) = queue
     abstract drawExtra: SpriteBatch -> 'uiState -> Unit
     default this.drawExtra(_: SpriteBatch)(_: 'uiState) = ()
     
-    abstract update: 'appState * GameTime * Input -> EventQueue<'appEvent>
-    default this.update(appState: 'appState, gameTime: GameTime, input: Input) =
+    abstract update: 'appState * GameTime * EventQueue<Input> -> EventQueue<'appEvent>
+    default this.update(appState: 'appState, gameTime: GameTime, input: EventQueue<Input>) =
         
         currentState <- this.synchronize(appState)(currentState)
         
         this.updateLayout()
         this.Widget.update(gameTime)(widgetQueue)
-        
-        this.handleDelayAndUpdate(gameTime, input)
+        this.Widget.receive(input)(widgetQueue)
             
         let mutable appQueue = this.handleWidgetEvents()
             
