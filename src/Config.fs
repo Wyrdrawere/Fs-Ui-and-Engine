@@ -1,5 +1,6 @@
 ﻿namespace Engine
 
+//todo: make into object, thats supposed to be created in maingame/app. then move defaultFont here
 module Config =
     //todo: remove game specific stuff from here 
     let screenWidth = 800

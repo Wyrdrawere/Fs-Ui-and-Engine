@@ -140,7 +140,7 @@ type WsLabel() =
     
     member val LastLength: int = 0 with get, set
     
-    member val Font: SpriteFont = AssetLoader.firaFont with get, set
+    member val Font: string = AssetLoader.defaultFont with get, set
     member val TextColor = Color.White with get, set
     member val Alignment = Center with get, set
     member this.Parameters =
@@ -216,7 +216,7 @@ type WsLabelButton<'appEvent, 'uiEvent>()=
     member val ButtonAlignment = Center with get, set
     member val Padding = 2 with get, set
     member val BorderSize = 2 with get, set
-    member val Font: SpriteFont = AssetLoader.firaFont with get, set
+    member val Font: string = AssetLoader.defaultFont with get, set
     member val TextColor = Color.White with get, set
     
     member val TextSizeModeX = Fixed with get, set

@@ -38,7 +38,7 @@ module Element =
           backgroundColor: Color //todo: split colors from layout settings. maybe rework this whole thing
           borderColor: Color
           textColor: Color
-          font: SpriteFont
+          font: string //path to font
           scaleX: float32 //todo: find way to make scale work with fontsize, then entire elementtrees can theoretically be scaled
           scaleY: float32 }
         
@@ -58,7 +58,7 @@ module Element =
           backgroundColor = Color.Blue
           borderColor = Color.Gray
           textColor = Color.White
-          font = AssetLoader.firaFont
+          font = AssetLoader.defaultFont
           scaleX = 1.0f
           scaleY = 1.0f }
         
@@ -84,7 +84,7 @@ module Element =
         | BackgroundColor of Color
         | BorderColor of Color
         | TextColor of Color
-        | Font of SpriteFont
+        | Font of string
         | Scale of float32
         | ScaleX of float32
         | ScaleY of float32
@@ -168,8 +168,12 @@ module Element =
     type LabelElement(settings: Settings, text: string) =
         
         let (sizeX, sizeY) =
-            let stringSize = settings.font.MeasureString(text)
-            (int <| stringSize.X, int <| stringSize.Y)
+            match AssetLoader.fonts |> Map.tryFind(settings.font) with
+            | Some(font) ->
+                let stringSize = font.MeasureString(text)
+                (int <| stringSize.X, int <| stringSize.Y)
+            | None ->
+                (0,0)
         
         interface Element with
             override this.LayoutNode =
@@ -199,14 +203,17 @@ module Element =
             override this.draw(spriteBatch: SpriteBatch)(boxTree: Tree<Box>) =
                 match boxTree with
                 | Leaf(box) ->
-                    DrawPrimitive.text(spriteBatch)(text, settings.font, settings.textColor, box.x, box.y)
+                    match AssetLoader.fonts |> Map.tryFind(settings.font) with
+                    | Some(font) ->
+                        DrawPrimitive.text(spriteBatch)(text, font, settings.textColor, box.x, box.y)
+                    | None -> ()
                 | Node _ -> ()
                 
             override this.passBox(_: Tree<Box>) = ()
                 
     type ImageElement(settings: Settings, path: string) =
         
-        do AssetLoader.loadImage(path)
+        do AssetLoader.load<Texture2D>(File path)
         let image = AssetLoader.images.TryFind(path)
         let(sizeX, sizeY) =
             match image with
