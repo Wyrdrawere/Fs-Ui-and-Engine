@@ -11,6 +11,7 @@ type UI<'appState, 'appEvent, 'uiState, 'uiEvent>(initialUIState: 'uiState, box:
      
     let mutable uiQueue: EventQueue<'uiEvent> = EventQueue()
     let mutable widgetQueue: EventQueue<Event<'appEvent, 'uiEvent>> = EventQueue()
+    let mutable appQueue: EventQueue<'appEvent> = EventQueue()
     let mutable currentState = initialUIState    
     
     let mutable layouts = Map.empty
@@ -46,6 +47,9 @@ type UI<'appState, 'appEvent, 'uiState, 'uiEvent>(initialUIState: 'uiState, box:
     
     member this.pushUIEvent(event: 'uiEvent) =
         uiQueue.push(event)
+        
+    member this.pushAppEvent(event: 'appEvent) =
+        appQueue.push(event)
     
     abstract synchronize: 'appState -> 'uiState -> 'uiState  
     abstract handleUIEvent: 'uiEvent -> 'uiState -> 'uiState
@@ -57,14 +61,16 @@ type UI<'appState, 'appEvent, 'uiState, 'uiEvent>(initialUIState: 'uiState, box:
     abstract drawExtra: SpriteBatch -> 'uiState -> Unit
     default this.drawExtra(_: SpriteBatch)(_: 'uiState) = ()
     
-    abstract update: 'appState * GameTime * EventQueue<Input> -> EventQueue<'appEvent>
-    default this.update(appState: 'appState, gameTime: GameTime, input: EventQueue<Input>) =
+    abstract receive: Input -> Unit
+    default this.receive(input) =
+        this.Widget.receive(input)(widgetQueue)
+    abstract update: 'appState * GameTime -> EventQueue<'appEvent>
+    default this.update(appState: 'appState, gameTime: GameTime) =
         
         currentState <- this.synchronize(appState)(currentState)
         
         this.updateLayout()
         this.Widget.update(gameTime)(widgetQueue)
-        this.Widget.receive(input)(widgetQueue)
             
         let mutable appQueue = this.handleWidgetEvents()
             

@@ -36,7 +36,7 @@ type State<'gameEvent, 'appState, 'appEvent, 'uiState, 'uiEvent>(initialState: '
         override this.update(gameTime: GameTime, input: EventQueue<Input>) =
             match ui with
             | Some(ui) ->
-                let events = ui.update(currentState, gameTime, input)
+                let events = ui.update(currentState, gameTime)
                 //todo: need some way to specify if state is allowed input even when ui exists
                 currentState <- currentState |> this.update(gameTime) |> this.receiveEvent(events)
             | None ->
