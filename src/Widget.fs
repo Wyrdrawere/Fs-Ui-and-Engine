@@ -10,7 +10,6 @@ open Microsoft.Xna.Framework.Input
 open Element
 open Engine.Extensions
   
-  
 type WsBase() =
     
     member val LastBox: Box = Box.Initial with get, set
@@ -202,7 +201,7 @@ type WsLabelButton<'appEvent, 'uiEvent>()=
     inherit WsBase()
     
     member val Label: string = "" with get, set
-    member val OnClick: Event<'appEvent, 'uiEvent> option = None with get, set
+    member val OnClick: Event<'appEvent, 'uiEvent> list = [] with get, set
     member val Hovered: bool = false with get, set
     member val Selected: bool = false with get, set
     member val Pressed: bool = false with get, set
@@ -256,7 +255,7 @@ type WsLabelButton<'appEvent, 'uiEvent>()=
         this.Selected <- false
         this.Pressed <- false
     
-    static member New(label: string, onClick: Event<'appEvent, 'uiEvent> option) =
+    static member New(label: string, onClick: Event<'appEvent, 'uiEvent> list) =
         let tmp = WsLabelButton()
         tmp.Label <- label
         tmp.OnClick <- onClick
@@ -300,7 +299,7 @@ type WsCaptionButton<'appEvent, 'uiEvent>() =
         [ Scale(this.Scale) ]
           
     
-    static member New(label: string, path: string, onClick: Event<'appEvent, 'uiEvent> option) =
+    static member New(label: string, path: string, onClick: Event<'appEvent, 'uiEvent> list) =
         let tmp = WsCaptionButton()
         tmp.Label <- label
         tmp.Path <- path
@@ -326,10 +325,10 @@ type WsButton<'appEvent, 'uiEvent>(buttonMode: ButtonMode<'appEvent, 'uiEvent>) 
             | LabelButton(button) -> button.LastBox <- value
             | CaptionButton(button) -> button.LastBox <- value
             
-    static member NewLabelButton(label: string, onClick: Event<'appEvent, 'uiEvent> option) =
+    static member NewLabelButton(label: string, onClick: Event<'appEvent, 'uiEvent> list) =
         WsButton(LabelButton(WsLabelButton.New(label, onClick)))
         
-    static member NewCaptionButton(label: string, path: string, onClick: Event<'appEvent, 'uiEvent> option) =
+    static member NewCaptionButton(label: string, path: string, onClick: Event<'appEvent, 'uiEvent> list) =
         WsButton(CaptionButton(WsCaptionButton.New(label, path, onClick)))
     
 type Button<'appEvent, 'uiEvent>(state: WsButton<'appEvent, 'uiEvent>) =    
@@ -348,14 +347,12 @@ type Button<'appEvent, 'uiEvent>(state: WsButton<'appEvent, 'uiEvent>) =
             let click() =
                 if not clicked
                 then
-                    match state.OnClick with
-                    | Some event ->
-                        clicked <- true
+                    clicked <- true //todo: check if still needed
+                    for event in state.OnClick do
                         queue.push(event)
-                    | None -> ()
             
             match input with
-            | KeyPressed(Keys.Enter) when state.OnClick |> Option.isSome ->
+            | KeyPressed(Keys.Enter) when not (state.OnClick |> List.isEmpty) ->
                 state.Pressed <- true
             | KeyReleased(Keys.Enter) ->
                 if state.Pressed then click()

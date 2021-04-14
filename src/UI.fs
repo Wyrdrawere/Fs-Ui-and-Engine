@@ -54,10 +54,6 @@ type UI<'appState, 'appEvent, 'uiState, 'uiEvent>(initialUIState: 'uiState, box:
     abstract synchronize: 'appState -> 'uiState -> 'uiState  
     abstract handleUIEvent: 'uiEvent -> 'uiState -> 'uiState
     
-    //todo: this exists to add uiEvents based on appEvents. decide if buttons should be allowed to push multiple events, then this could go
-    //todo: decision made, they should be able to push multiple, make it happen
-    abstract inspectAppEvents: EventQueue<'appEvent> -> EventQueue<'appEvent>
-    default this.inspectAppEvents(queue: EventQueue<'appEvent>) = queue
     abstract drawExtra: SpriteBatch -> 'uiState -> Unit
     default this.drawExtra(_: SpriteBatch)(_: 'uiState) = ()
     
@@ -75,7 +71,6 @@ type UI<'appState, 'appEvent, 'uiState, 'uiEvent>(initialUIState: 'uiState, box:
         let mutable appQueue = this.handleWidgetEvents()
             
         widgetQueue <- EventQueue()
-        appQueue <- this.inspectAppEvents(appQueue)
         this.handleUIEventsInternal()
         appQueue
         

@@ -39,11 +39,6 @@ module Tree =
         | Node(a, ts) ->
             Node(f a, ts |> List.map(map f))
 
-type Event<'appEvent, 'uiEvent> =
-    | SetDelay
-    | AppEvent of 'appEvent
-    | UIEvent of 'uiEvent
-    
 module DrawPrimitive =
 
     let rectangle(spriteBatch: SpriteBatch)(color: Color, box: Box) =
