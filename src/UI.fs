@@ -6,7 +6,6 @@ open Engine.System
 open Microsoft.Xna.Framework
 open Microsoft.Xna.Framework.Graphics
 
-
 [<AbstractClass>]
 type UI<'appState, 'appEvent, 'uiState, 'uiEvent>(initialUIState: 'uiState, box: Box) =
      
