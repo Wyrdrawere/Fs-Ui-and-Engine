@@ -6,18 +6,24 @@ open Engine.System
 open Microsoft.Xna.Framework
 open Microsoft.Xna.Framework.Graphics
 
+
 [<AbstractClass>]
 type UI<'appState, 'appEvent, 'uiState, 'uiEvent>(initialUIState: 'uiState, box: Box) =
      
-    let mutable uiQueue: EventQueue<'uiEvent> = EventQueue()
-    let mutable widgetQueue: EventQueue<Event<'appEvent, 'uiEvent>> = EventQueue()
-    let mutable appQueue: EventQueue<'appEvent> = EventQueue()
+    let mutable eventQueue: EventQueue<Event<'appEvent, 'uiEvent>> = EventQueue()
     let mutable currentState = initialUIState    
     
     let mutable layouts = Map.empty
     let mutable currentLayout = 0
       
     member val Widget = Panel(WsPanel.New([Label(WsLabel.New("UI not implemented"))])) :> IWidget<'appEvent, 'uiEvent> with get, set
+    
+    member this.getState() =
+        currentState
+    
+    //looks absolutely useless, but is really handy in inherited classes
+    member this.asUI() =
+        this :> UI<'appState, 'appEvent, 'uiState, 'uiEvent>
     
     member private this.updateLayout() =
         currentLayout <- Layout.hashParameters(this.Widget.LayoutNode)
@@ -29,50 +35,35 @@ type UI<'appState, 'appEvent, 'uiState, 'uiEvent>(initialUIState: 'uiState, box:
             layouts <- layouts |> Map.add(key)(layout)
             this.Widget.passBox(layout)
             
-    member private this.handleWidgetEvents() =
-        //todo: make appQueue a ui value, that functions can push events on, to make global-ish events like "closeMenu" possible
-        let mutable appQueue = EventQueue()
-        for event in widgetQueue.read() do
-            match event with
-            | AppEvent(event) -> appQueue.push(event)
-            | UIEvent(event) -> this.pushUIEvent(event)
-            | _ -> ()
-        appQueue
-    
-    member private this.handleUIEventsInternal() =
-        currentState <-
-            uiQueue.read()
-            |> List.fold(fun state event -> this.handleUIEvent(event)(state))(currentState)
-        uiQueue <- EventQueue()
-    
-    member this.pushUIEvent(event: 'uiEvent) =
-        uiQueue.push(event)
-        
-    member this.pushAppEvent(event: 'appEvent) =
-        appQueue.push(event)
-    
+    member this.pushEvent(event: Event<'appEvent, 'uiEvent>) =
+        eventQueue.push(event)
+            
     abstract synchronize: 'appState -> 'uiState -> 'uiState  
     abstract handleUIEvent: 'uiEvent -> 'uiState -> 'uiState
     
     abstract drawExtra: SpriteBatch -> 'uiState -> Unit
     default this.drawExtra(_: SpriteBatch)(_: 'uiState) = ()
     
-    abstract receive: Input -> Unit
-    default this.receive(input) =
-        this.Widget.receive(input)(widgetQueue)
-    abstract update: 'appState * GameTime -> EventQueue<'appEvent>
-    default this.update(appState: 'appState, gameTime: GameTime) =
+    abstract receive: Input -> unit
+    default this.receive(input: Input) =
+        this.Widget.receive(input)(eventQueue)
+        
+    abstract update: 'appState * GameTime * EventQueue<'appEvent> -> unit
+    default this.update(appState: 'appState, gameTime: GameTime, appQueue: EventQueue<'appEvent>) =
         
         currentState <- this.synchronize(appState)(currentState)
         
         this.updateLayout()
-        this.Widget.update(gameTime)(widgetQueue)
+        this.Widget.update(gameTime)(eventQueue)
             
-        let mutable appQueue = this.handleWidgetEvents()
+        for event in eventQueue.read() do
+            match event with
+            | AppEvent(event) -> appQueue.push(event)
+            | UIEvent(event) -> currentState <- this.handleUIEvent(event)(currentState)
+            | _ -> ()
             
-        widgetQueue <- EventQueue()
-        this.handleUIEventsInternal()
-        appQueue
+        eventQueue <- EventQueue()
+        
         
     abstract render: SpriteBatch -> Unit
     default this.render(spriteBatch: SpriteBatch) =
