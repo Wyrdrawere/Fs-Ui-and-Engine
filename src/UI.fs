@@ -7,22 +7,24 @@ open Microsoft.Xna.Framework
 open Microsoft.Xna.Framework.Graphics
 
 [<AbstractClass>]
-type UI<'appState, 'appEvent, 'uiState, 'uiEvent>(initialUIState: 'uiState, box: Box) =
+type UI<'appState, 'uiState, 'sceneEvent, 'appEvent, 'uiEvent>(initialUIState: 'uiState, box: Box) =
      
-    let mutable eventQueue: EventQueue<Event<'appEvent, 'uiEvent>> = EventQueue()
+    let mutable eventQueue: EventQueue<GameEvent<'sceneEvent, 'appEvent, 'uiEvent>> = EventQueue()
     let mutable currentState = initialUIState    
     
     let mutable layouts = Map.empty
     let mutable currentLayout = 0
       
-    member val Widget = Panel(WsPanel.New([Label(WsLabel.New("UI not implemented"))])) :> IWidget<'appEvent, 'uiEvent> with get, set
+    member val Widget: IWidget<'sceneEvent, 'appEvent, 'uiEvent> =
+        Panel(WsPanel.New([]))
+        :> IWidget<'sceneEvent, 'appEvent, 'uiEvent> with get, set
     
     member this.getState() =
         currentState
     
     //looks absolutely useless, but is really handy in inherited classes
     member this.asUI() =
-        this :> UI<'appState, 'appEvent, 'uiState, 'uiEvent>
+        this :> UI<'appState, 'uiState, 'sceneEvent, 'appEvent, 'uiEvent>
     
     member private this.updateLayout() =
         currentLayout <- Layout.hashParameters(this.Widget.LayoutNode)
@@ -34,7 +36,7 @@ type UI<'appState, 'appEvent, 'uiState, 'uiEvent>(initialUIState: 'uiState, box:
             layouts <- layouts |> Map.add(key)(layout)
             this.Widget.passBox(layout)
             
-    member this.pushEvent(event: Event<'appEvent, 'uiEvent>) =
+    member this.pushEvent(event: GameEvent<'sceneEvent, 'appEvent, 'uiEvent>) =
         eventQueue.push(event)
             
     abstract synchronize: 'appState -> 'uiState -> 'uiState  
@@ -47,17 +49,18 @@ type UI<'appState, 'appEvent, 'uiState, 'uiEvent>(initialUIState: 'uiState, box:
     default this.receive(input: Input) =
         this.Widget.receive(input)(eventQueue)
         
-    abstract update: 'appState * GameTime * EventQueue<'appEvent> -> unit
-    default this.update(appState: 'appState, gameTime: GameTime, appQueue: EventQueue<'appEvent>) =
+    abstract update: 'appState * GameTime * EventQueue<GameEvent<'sceneEvent, 'appEvent, 'uiEvent>> -> unit
+    default this.update(appState: 'appState, gameTime: GameTime, appQueue: EventQueue<GameEvent<'sceneEvent, 'appEvent, 'uiEvent>>) =
         
         currentState <- this.synchronize(appState)(currentState)
         
         this.updateLayout()
         this.Widget.update(gameTime)(eventQueue)
-            
+        
         for event in eventQueue.read() do
             match event with
-            | AppEvent(event) -> appQueue.push(event)
+            | SceneEvent _ as event -> appQueue.push(event)
+            | AppEvent _ as event -> appQueue.push(event)
             | UIEvent(event) -> currentState <- this.handleUIEvent(event)(currentState)
             
         eventQueue <- EventQueue()
