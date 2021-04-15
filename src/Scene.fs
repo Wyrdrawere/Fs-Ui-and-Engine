@@ -22,8 +22,8 @@ type SceneUI<'appState, 'appEvent, 'uiState, 'uiEvent> =
 and
     SceneEvent<'appState, 'appEvent, 'uiState, 'uiEvent> =
     | StateEvent of 'appEvent
-    | OpenMenu of SceneUI<'appState, 'appEvent, 'uiState, 'uiEvent>
-    | CloseMenu 
+    | OpenUI of SceneUI<'appState, 'appEvent, 'uiState, 'uiEvent>
+    | CloseUI 
 
 [<AbstractClass>]    
 type Scene<'appState, 'appEvent, 'uiState, 'uiEvent>(initialState: 'appState) =
@@ -63,10 +63,10 @@ type Scene<'appState, 'appEvent, 'uiState, 'uiEvent>(initialState: 'appState) =
                     eventQueue.read() |> List.fold(fun accState sceneEvent ->
                         match sceneEvent with
                         | StateEvent(event) -> this.receiveEvent(event)(accState)
-                        | OpenMenu(nextUI) ->
+                        | OpenUI(nextUI) ->
                             ui <- Some(nextUI)
                             accState
-                        | CloseMenu ->
+                        | CloseUI ->
                             ui <- None
                             accState
                         )

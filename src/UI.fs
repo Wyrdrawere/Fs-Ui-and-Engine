@@ -60,7 +60,6 @@ type UI<'appState, 'appEvent, 'uiState, 'uiEvent>(initialUIState: 'uiState, box:
             match event with
             | AppEvent(event) -> appQueue.push(event)
             | UIEvent(event) -> currentState <- this.handleUIEvent(event)(currentState)
-            | _ -> ()
             
         eventQueue <- EventQueue()
         

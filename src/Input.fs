@@ -17,7 +17,6 @@ type EventQueue<'event>() =
     member this.read() = List.rev queue
     
 type Event<'appEvent, 'uiEvent> =
-    | SetDelay
     | AppEvent of 'appEvent
     | UIEvent of 'uiEvent
     
