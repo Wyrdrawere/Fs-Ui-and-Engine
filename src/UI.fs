@@ -8,7 +8,7 @@ open Microsoft.Xna.Framework.Graphics
 
 [<AbstractClass>]
 type UI<'appState, 'uiState, 'globalEvent, 'localEvent>(initialUIState: 'uiState, box: Box) =
-     
+    
     let mutable eventQueue: EventQueue<'globalEvent> = EventQueue()
     let mutable currentState = initialUIState
     
@@ -62,7 +62,6 @@ type UI<'appState, 'uiState, 'globalEvent, 'localEvent>(initialUIState: 'uiState
             | None ->
                 appQueue.push(globalEvent)
                 
-        
         eventQueue <- EventQueue()
         
         
@@ -80,9 +79,9 @@ type UI<'appState, 'uiState, 'globalEvent, 'localEvent>(initialUIState: 'uiState
 [<AbstractClass>]
 type SceneUI<'appState, 'uiState, 'sceneEvent, 'appEvent, 'uiEvent>(initialUIState: 'uiState, box: Box) =
     
-    inherit UI<'appState, 'uiState, GameEvent<'sceneEvent, 'appEvent, 'uiEvent>, 'uiEvent>(initialUIState, box) with
+    inherit UI<'appState, 'uiState, InternalEvent<'sceneEvent, 'appEvent, 'uiEvent>, 'uiEvent>(initialUIState, box) with
         
-        override this.localize(gameEvent: GameEvent<_,_,_>) =
+        override this.localize(gameEvent: InternalEvent<_,_,_>) =
             match gameEvent with
             | UIEvent(event) -> Some(event)
             | _ -> None

@@ -1,6 +1,6 @@
 namespace Engine
 
-namespace Engine.State
+namespace Engine.System
 
 open Engine.System
 open Engine.UI
@@ -8,59 +8,67 @@ open Microsoft.Xna.Framework
 open Microsoft.Xna.Framework.Graphics
 
 
+
 //todo: maybe put gameEvent here, for switching IState and other stuff
-type IScene =
-    
-    abstract update: GameTime -> unit
+type IScene<'nexusEvent> =
     
     abstract receive: Input -> unit
     
+    abstract update: EventQueue<'nexusEvent> -> GameTime -> unit
+    
     abstract draw: SpriteBatch -> unit
   
-type SceneEvent<'uiKey when 'uiKey : comparison> =
+type NexusEvent<'sceneKey> =
+    | SetScene of 'sceneKey
+    | AddScene of 'sceneKey * IScene<NexusEvent<'sceneKey>>
+    | Print of string
+  
+type SceneEvent<'sceneKey, 'uiKey when 'sceneKey :comparison and 'uiKey : comparison> =
     | OpenUI of 'uiKey
     | CloseUI
+    | NexusEvent of NexusEvent<'sceneKey>
     
 [<AbstractClass>]    
-type Scene<'appState, 'uiState, 'appEvent, 'uiEvent, 'uiKey when 'uiKey : comparison>(initialState: 'appState) =
+type Scene<'appState, 'uiState, 'appEvent, 'uiEvent, 'sceneKey, 'uiKey when 'sceneKey: comparison and 'uiKey : comparison>(initialState: 'appState) =
     
-    let mutable eventQueue: EventQueue<GameEvent<SceneEvent<'uiKey>, 'appEvent, 'uiEvent>> = EventQueue()
+    let mutable eventQueue: EventQueue<InternalEvent<SceneEvent<'sceneKey, 'uiKey>, 'appEvent, 'uiEvent>> = EventQueue()
     let mutable currentState: 'appState = initialState
     //todo: might not be the best way to do things. multiple, layering uis could be made, or just some that are annoying to layout otherwise
     //todo: or upgrade layout to allow for this sort of thing (layering hard, better layouting easy)
-    let mutable uiMap: Map<'uiKey, SceneUI<'appState, 'uiState, SceneEvent<'uiKey>, 'appEvent, 'uiEvent>> = Map.empty
-    let mutable ui: SceneUI<'appState, 'uiState, SceneEvent<'uiKey>, 'appEvent, 'uiEvent> option = None
+    //todo: uis can now replace themselves with other uis, layering them could be done by replacing option with list. 
+    let mutable uiMap: Map<'uiKey, SceneUI<'appState, 'uiState, SceneEvent<'sceneKey, 'uiKey>, 'appEvent, 'uiEvent>> = Map.empty
+    let mutable ui: SceneUI<'appState, 'uiState, SceneEvent<'sceneKey, 'uiKey>, 'appEvent, 'uiEvent> option = None
     
     //todo: should be event, but leads to the horrible generic type mess that was just fixed. find another way if possible
-    member this.addUI(key: 'uiKey)(ui: SceneUI<'appState, 'uiState, SceneEvent<'uiKey>, 'appEvent, 'uiEvent>) =
+    member this.addUI(key: 'uiKey)(ui: SceneUI<'appState, 'uiState, SceneEvent<'sceneKey, 'uiKey>, 'appEvent, 'uiEvent>) =
         uiMap <- uiMap |> Map.add(key)(ui)
         
     member this.hasUI() =
         ui |> Option.isSome
         
-    member this.pushEvent(event: SceneEvent<'uiKey>) =
+    //todo: think about changing this to pushSceneEvent and adding pushAppEvent, then gameState wont have to implement own queue    
+    member this.pushEvent(event: SceneEvent<'sceneKey, 'uiKey>) =
         eventQueue.push(SceneEvent(event))
     
     abstract update: GameTime -> 'appState -> 'appState
     
-    //todo: define IState that gets input/time and queue to make scene completely automated 
-    abstract receiveInput: Input -> 'appState -> 'appState
+    abstract handleInput: Input -> 'appState -> 'appState
     
-    abstract receiveEvent: 'appEvent -> 'appState -> 'appState
+    abstract handleEvent: 'appEvent -> 'appState -> 'appState
     
     //todo: needs some initializing function in case it doesn't get overridden. 
     abstract chooseUI:
         'uiKey ->
-        Map<'uiKey, SceneUI<'appState, 'uiState, SceneEvent<'uiKey>, 'appEvent, 'uiEvent>> ->
+        Map<'uiKey, SceneUI<'appState, 'uiState, SceneEvent<'sceneKey, 'uiKey>, 'appEvent, 'uiEvent>> ->
         'appState ->
-        SceneUI<'appState, 'uiState, SceneEvent<'uiKey>, 'appEvent, 'uiEvent> option
+        SceneUI<'appState, 'uiState, SceneEvent<'sceneKey, 'uiKey>, 'appEvent, 'uiEvent> option
     default this.chooseUI(key: 'uiKey)(uiMap: Map<_,_>)(_: 'appState) =
         uiMap |> Map.tryFind(key)
     
     abstract render: SpriteBatch -> 'appState -> unit
     
-    interface IScene with
-        override this.update(gameTime: GameTime) =
+    interface IScene<NexusEvent<'sceneKey>> with
+        override this.update(nexusQueue: EventQueue<NexusEvent<'sceneKey>>)(gameTime: GameTime) =
             match ui with
             | Some(ui) ->
                 ui.update(currentState, gameTime, eventQueue)
@@ -74,7 +82,7 @@ type Scene<'appState, 'uiState, 'appEvent, 'uiEvent, 'uiKey when 'uiKey : compar
                     eventQueue.read() |> List.fold(fun accState generalEvent ->
                         match generalEvent with
                         | AppEvent(event) ->
-                            accState |> this.receiveEvent(event)
+                            accState |> this.handleEvent(event)
                         | _ -> accState
                         )
                         (state))
@@ -87,6 +95,8 @@ type Scene<'appState, 'uiState, 'appEvent, 'uiEvent, 'uiKey when 'uiKey : compar
                         ui <- this.chooseUI(key)(uiMap)(currentState)
                     | CloseUI ->
                         ui <- None
+                    | NexusEvent(event) ->
+                        nexusQueue.push(event)
                 | _ -> ()
                         
                 
@@ -99,7 +109,7 @@ type Scene<'appState, 'uiState, 'appEvent, 'uiEvent, 'uiKey when 'uiKey : compar
             | Some(ui) ->
                 ui.handleInput(input) 
             | None ->
-                currentState <- currentState |> this.receiveInput(input)
+                currentState <- currentState |> this.handleInput(input)
             
         override this.draw(spriteBatch) =
             this.render(spriteBatch)(currentState)
