@@ -6,6 +6,14 @@ open Microsoft.Xna.Framework
 open Microsoft.Xna.Framework.Content
 open Microsoft.Xna.Framework.Graphics
 
+//todo: move MainGame in engine and make it a new type initialized by giving a nexus
+
+//todo: functionality for loading and sound should be part of this 
+type NexusEvent<'sceneKey> =
+    | SetScene of 'sceneKey
+    | AddScene of 'sceneKey * IScene<NexusEvent<'sceneKey>>
+    | Print of string
+
 type INexus =
     abstract receive: Input -> unit
     abstract update: GameTime -> unit
