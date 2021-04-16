@@ -10,7 +10,6 @@ type SceneEvent<'uiKey when 'uiKey : comparison> =
     | OpenUI of 'uiKey
     | CloseUI
     
-//todo: maybe put gameEvent here, for switching IState and other stuff
 type IScene<'nexusEvent> =
     
     abstract receive: Input -> unit
