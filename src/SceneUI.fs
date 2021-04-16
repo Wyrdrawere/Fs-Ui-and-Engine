@@ -10,6 +10,7 @@ type GameEvent<'nexusEvent, 'sceneEvent, 'appEvent, 'uiEvent> =
     | AppEvent of 'appEvent
     | UIEvent of 'uiEvent
     
+//todo: naming. stateUI | sceneUI | something else
 [<AbstractClass>]
 type SceneUI<'appState, 'uiState, 'nexusEvent, 'sceneEvent, 'appEvent, 'uiEvent>(initialUIState: 'uiState, box: Box) =
     

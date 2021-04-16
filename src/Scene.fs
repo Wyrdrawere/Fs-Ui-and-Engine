@@ -18,14 +18,14 @@ type IScene<'nexusEvent> =
     
     abstract draw: SpriteBatch -> unit
   
-[<AbstractClass>]    
+
+//todo: fix typegore somehow. unfortunately f# doesn't allow aliases inside definitions
+  
+[<AbstractClass>]
 type Scene<'appState, 'uiState, 'nexusEvent, 'appEvent, 'uiEvent, 'uiKey when 'uiKey : comparison>(initialState: 'appState) =
     
     let mutable eventQueue: EventQueue<GameEvent<'nexusEvent, SceneEvent<'uiKey>, 'appEvent, 'uiEvent>> = EventQueue()
     let mutable currentState: 'appState = initialState
-    //todo: might not be the best way to do things. multiple, layering uis could be made, or just some that are annoying to layout otherwise
-    //todo: or upgrade layout to allow for this sort of thing (layering hard, better layouting easy)
-    //todo: uis can now replace themselves with other uis, layering them could be done by replacing option with list. 
     let mutable uiMap: Map<'uiKey, SceneUI<'appState, 'uiState, 'nexusEvent, SceneEvent<'uiKey>, 'appEvent, 'uiEvent>> = Map.empty
     let mutable ui: SceneUI<'appState, 'uiState, 'nexusEvent, SceneEvent<'uiKey>, 'appEvent, 'uiEvent> option = None
     
@@ -46,8 +46,8 @@ type Scene<'appState, 'uiState, 'nexusEvent, 'appEvent, 'uiEvent, 'uiKey when 'u
     
     abstract handleEvent: 'appEvent -> 'appState -> 'appState
     
-    //todo: needs some initializing function in case it doesn't get overridden. 
-    abstract chooseUI:
+    //todo: needs some initializing function in case it doesn't get overridden. also signature, wtf
+    abstract chooseUI: 
         'uiKey ->
         Map<'uiKey, SceneUI<'appState, 'uiState, 'nexusEvent, SceneEvent<'uiKey>, 'appEvent, 'uiEvent>> ->
         'appState ->
@@ -106,5 +106,4 @@ type Scene<'appState, 'uiState, 'nexusEvent, 'appEvent, 'uiEvent, 'uiKey when 'u
             match ui with
             | Some(ui) -> ui.render(spriteBatch)
             | None -> ()
-    
     
