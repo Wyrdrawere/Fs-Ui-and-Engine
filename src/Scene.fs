@@ -1,6 +1,6 @@
 namespace Engine
 
-namespace Engine.System
+namespace Engine.State
 
 open Engine.System
 open Engine.UI

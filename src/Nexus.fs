@@ -1,7 +1,8 @@
 namespace Engine
 
-namespace Engine.System
+namespace Engine.State
 
+open Engine.System
 open Microsoft.Xna.Framework
 open Microsoft.Xna.Framework.Content
 open Microsoft.Xna.Framework.Graphics
