@@ -26,7 +26,7 @@ type IScene<'nexusEvent> =
 [<AbstractClass>]    
 type Scene<'appState, 'uiState, 'appEvent, 'uiEvent, 'nexusEvent, 'uiKey when 'uiKey : comparison>(initialState: 'appState) =
     
-    let mutable eventQueue: EventQueue<InternalEvent<SceneEvent<'nexusEvent, 'uiKey>, 'appEvent, 'uiEvent>> = EventQueue()
+    let mutable eventQueue: EventQueue<GameEvent<SceneEvent<'nexusEvent, 'uiKey>, 'appEvent, 'uiEvent>> = EventQueue()
     let mutable currentState: 'appState = initialState
     //todo: might not be the best way to do things. multiple, layering uis could be made, or just some that are annoying to layout otherwise
     //todo: or upgrade layout to allow for this sort of thing (layering hard, better layouting easy)

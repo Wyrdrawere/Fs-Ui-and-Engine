@@ -15,23 +15,24 @@ type UI<'appState, 'uiState, 'globalEvent, 'localEvent>(initialUIState: 'uiState
     let mutable layouts = Map.empty
     let mutable currentLayout = 0
       
-    member val Widget: IWidget<'globalEvent> =
-        Panel(WsPanel.New([]))
-        :> IWidget<'globalEvent> with get, set
-    
+    member val Widget: IWidget<'globalEvent> option = None with get, set
+       
     member this.getState() =
         currentState
     
     
     member private this.updateLayout() =
-        currentLayout <- Layout.hashParameters(this.Widget.LayoutNode)
-        if not (layouts |> Map.containsKey(currentLayout))
-        then
-            this.Widget.initBox(Layout.calculate(box, this.Widget.initView().LayoutNode))
-            let key = Layout.hashParameters(this.Widget.LayoutNode)
-            let layout = Layout.calculate(box, this.Widget.LayoutNode)
-            layouts <- layouts |> Map.add(key)(layout)
-            this.Widget.passBox(layout)
+        match this.Widget with
+        | Some(widget) ->
+            currentLayout <- Layout.hashParameters(widget.LayoutNode)
+            if not (layouts |> Map.containsKey(currentLayout))
+            then
+                widget.initBox(Layout.calculate(box, widget.initView().LayoutNode))
+                let key = Layout.hashParameters(widget.LayoutNode)
+                let layout = Layout.calculate(box, widget.LayoutNode)
+                layouts <- layouts |> Map.add(key)(layout)
+                widget.passBox(layout)
+        | None -> ()
             
     member this.pushEvent(event: 'globalEvent) =
         eventQueue.push(event)
@@ -45,7 +46,9 @@ type UI<'appState, 'uiState, 'globalEvent, 'localEvent>(initialUIState: 'uiState
     
     abstract handleInput: Input -> unit
     default this.handleInput(input: Input) =
-        this.Widget.receive(input)(eventQueue)
+        this.Widget
+        |> Option.map(fun widget -> widget.receive(input)(eventQueue))
+        |> ignore
         
     abstract update: 'appState * GameTime * EventQueue<'globalEvent> -> unit
     default this.update(appState: 'appState, gameTime: GameTime, appQueue: EventQueue<'globalEvent>) =
@@ -53,7 +56,10 @@ type UI<'appState, 'uiState, 'globalEvent, 'localEvent>(initialUIState: 'uiState
         currentState <- this.synchronize(appState)(currentState)
         
         this.updateLayout()
-        this.Widget.update(gameTime)(eventQueue)
+        
+        this.Widget
+        |> Option.map(fun widget -> widget.update(gameTime)(eventQueue))
+        |> ignore
         
         for globalEvent in eventQueue.read() do
             match this.localize(globalEvent) with
@@ -70,18 +76,23 @@ type UI<'appState, 'uiState, 'globalEvent, 'localEvent>(initialUIState: 'uiState
         this.updateLayout()
         match layouts |> Map.tryFind(currentLayout) with
         | Some(layout) ->
-            this.Widget.draw(spriteBatch)(layout)
+            
+            this.Widget
+            |> Option.map(fun widget -> widget.draw(spriteBatch)(layout))
+            |> ignore
+            
             this.drawExtra(spriteBatch)(currentState)
-        | None ->
+        | None when this.Widget |> Option.isSome ->
             this.updateLayout()
             this.render(spriteBatch)
+        | None -> ()
         
 [<AbstractClass>]
 type SceneUI<'appState, 'uiState, 'sceneEvent, 'appEvent, 'uiEvent>(initialUIState: 'uiState, box: Box) =
     
-    inherit UI<'appState, 'uiState, InternalEvent<'sceneEvent, 'appEvent, 'uiEvent>, 'uiEvent>(initialUIState, box) with
+    inherit UI<'appState, 'uiState, GameEvent<'sceneEvent, 'appEvent, 'uiEvent>, 'uiEvent>(initialUIState, box) with
         
-        override this.localize(gameEvent: InternalEvent<_,_,_>) =
+        override this.localize(gameEvent: GameEvent<_,_,_>) =
             match gameEvent with
             | UIEvent(event) -> Some(event)
             | _ -> None
