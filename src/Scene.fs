@@ -21,7 +21,7 @@ type SceneEvent<'uiKey when 'uiKey : comparison> =
     | OpenUI of 'uiKey
     | CloseUI
     
-type SceneUI<'appState, 'uiState, 'appEvent, 'uiEvent, 'uiKey when 'uiKey : comparison> =
+type SceneUIX<'appState, 'uiState, 'appEvent, 'uiEvent, 'uiKey when 'uiKey : comparison> =
     UI<'appState, 'uiState, SceneEvent<'uiKey>, 'appEvent, 'uiEvent>
 
 [<AbstractClass>]    
@@ -31,11 +31,11 @@ type Scene<'appState, 'uiState, 'appEvent, 'uiEvent, 'uiKey when 'uiKey : compar
     let mutable currentState: 'appState = initialState
     //todo: might not be the best way to do things. multiple, layering uis could be made, or just some that are annoying to layout otherwise
     //todo: or upgrade layout to allow for this sort of thing (layering hard, better layouting easy)
-    let mutable uiMap: Map<'uiKey, SceneUI<'appState, 'uiState, 'appEvent, 'uiEvent, 'uiKey>> = Map.empty
-    let mutable ui: SceneUI<'appState, 'uiState, 'appEvent, 'uiEvent, 'uiKey> option = None
+    let mutable uiMap: Map<'uiKey, SceneUIX<'appState, 'uiState, 'appEvent, 'uiEvent, 'uiKey>> = Map.empty
+    let mutable ui: SceneUIX<'appState, 'uiState, 'appEvent, 'uiEvent, 'uiKey> option = None
     
     //todo: should be event, but leads to the horrible generic type mess that was just fixed. find another way if possible
-    member this.addUI(key: 'uiKey)(ui: SceneUI<'appState, 'uiState, 'appEvent, 'uiEvent, 'uiKey>) =
+    member this.addUI(key: 'uiKey)(ui: SceneUIX<'appState, 'uiState, 'appEvent, 'uiEvent, 'uiKey>) =
         uiMap <- uiMap |> Map.add(key)(ui)
         
     member this.hasUI() =
@@ -54,9 +54,9 @@ type Scene<'appState, 'uiState, 'appEvent, 'uiEvent, 'uiKey when 'uiKey : compar
     //todo: needs some initializing function in case it doesn't get overridden. 
     abstract chooseUI:
         'uiKey ->
-        Map<'uiKey, SceneUI<'appState, 'uiState, 'appEvent, 'uiEvent, 'uiKey>> ->
+        Map<'uiKey, SceneUIX<'appState, 'uiState, 'appEvent, 'uiEvent, 'uiKey>> ->
         'appState ->
-        SceneUI<'appState, 'uiState, 'appEvent, 'uiEvent, 'uiKey> option
+        SceneUIX<'appState, 'uiState, 'appEvent, 'uiEvent, 'uiKey> option
     default this.chooseUI(key: 'uiKey)(uiMap: Map<_,_>)(_: 'appState) =
         uiMap |> Map.tryFind(key)
     

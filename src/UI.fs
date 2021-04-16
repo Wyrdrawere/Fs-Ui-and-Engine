@@ -15,9 +15,9 @@ type UI<'appState, 'uiState, 'sceneEvent, 'appEvent, 'uiEvent>(initialUIState: '
     let mutable layouts = Map.empty
     let mutable currentLayout = 0
       
-    member val Widget: IWidget<'sceneEvent, 'appEvent, 'uiEvent> =
+    member val Widget: IWidget<GameEvent<'sceneEvent, 'appEvent, 'uiEvent>> =
         Panel(WsPanel.New([]))
-        :> IWidget<'sceneEvent, 'appEvent, 'uiEvent> with get, set
+        :> IWidget<GameEvent<'sceneEvent, 'appEvent, 'uiEvent>> with get, set
     
     member this.getState() =
         currentState
