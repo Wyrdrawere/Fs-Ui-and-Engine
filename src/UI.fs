@@ -6,25 +6,23 @@ open Engine.System
 open Microsoft.Xna.Framework
 open Microsoft.Xna.Framework.Graphics
 
+//todo: maybe make inEvent/outEvent or something, to allow for defintion of translate/extract function and make sceneUI less dumb
 [<AbstractClass>]
-type UI<'appState, 'uiState, 'sceneEvent, 'appEvent, 'uiEvent>(initialUIState: 'uiState, box: Box) =
+type UI<'appState, 'uiState, 'event>(initialUIState: 'uiState, box: Box) =
      
-    let mutable eventQueue: EventQueue<GameEvent<'sceneEvent, 'appEvent, 'uiEvent>> = EventQueue()
-    let mutable currentState = initialUIState    
+    let mutable eventQueue: EventQueue<'event> = EventQueue()
+    let mutable currentState = initialUIState
     
     let mutable layouts = Map.empty
     let mutable currentLayout = 0
       
-    member val Widget: IWidget<GameEvent<'sceneEvent, 'appEvent, 'uiEvent>> =
+    member val Widget: IWidget<'event> =
         Panel(WsPanel.New([]))
-        :> IWidget<GameEvent<'sceneEvent, 'appEvent, 'uiEvent>> with get, set
+        :> IWidget<'event> with get, set
     
     member this.getState() =
         currentState
     
-    //looks absolutely useless, but is really handy in inherited classes
-    member this.asUI() =
-        this :> UI<'appState, 'uiState, 'sceneEvent, 'appEvent, 'uiEvent>
     
     member private this.updateLayout() =
         currentLayout <- Layout.hashParameters(this.Widget.LayoutNode)
@@ -36,33 +34,30 @@ type UI<'appState, 'uiState, 'sceneEvent, 'appEvent, 'uiEvent>(initialUIState: '
             layouts <- layouts |> Map.add(key)(layout)
             this.Widget.passBox(layout)
             
-    member this.pushEvent(event: GameEvent<'sceneEvent, 'appEvent, 'uiEvent>) =
+    member this.pushEvent(event: 'event) =
         eventQueue.push(event)
             
     abstract synchronize: 'appState -> 'uiState -> 'uiState  
-    abstract handleUIEvent: 'uiEvent -> 'uiState -> 'uiState
+    abstract handleEvent: 'event -> 'uiState -> 'uiState
+    abstract receiveAndEmit: EventQueue<'event> -> EventQueue<'event> -> 'uiState -> 'uiState
     
     abstract drawExtra: SpriteBatch -> 'uiState -> Unit
     default this.drawExtra(_: SpriteBatch)(_: 'uiState) = ()
     
-    abstract receive: Input -> unit
-    default this.receive(input: Input) =
+    abstract handleInput: Input -> unit
+    default this.handleInput(input: Input) =
         this.Widget.receive(input)(eventQueue)
         
-    abstract update: 'appState * GameTime * EventQueue<GameEvent<'sceneEvent, 'appEvent, 'uiEvent>> -> unit
-    default this.update(appState: 'appState, gameTime: GameTime, appQueue: EventQueue<GameEvent<'sceneEvent, 'appEvent, 'uiEvent>>) =
+    abstract update: 'appState * GameTime * EventQueue<'event> -> unit
+    default this.update(appState: 'appState, gameTime: GameTime, appQueue: EventQueue<'event>) =
         
         currentState <- this.synchronize(appState)(currentState)
         
         this.updateLayout()
         this.Widget.update(gameTime)(eventQueue)
         
-        for event in eventQueue.read() do
-            match event with
-            | SceneEvent _ as event -> appQueue.push(event)
-            | AppEvent _ as event -> appQueue.push(event)
-            | UIEvent(event) -> currentState <- this.handleUIEvent(event)(currentState)
-            
+        currentState <- this.receiveAndEmit(eventQueue)(appQueue)(currentState)
+        
         eventQueue <- EventQueue()
         
         
@@ -77,3 +72,23 @@ type UI<'appState, 'uiState, 'sceneEvent, 'appEvent, 'uiEvent>(initialUIState: '
             this.updateLayout()
             this.render(spriteBatch)
         
+[<AbstractClass>]
+type SceneUI<'appState, 'uiState, 'sceneEvent, 'appEvent, 'uiEvent>(initialUIState: 'uiState, box: Box) =
+    
+    inherit UI<'appState, 'uiState, GameEvent<'sceneEvent, 'appEvent, 'uiEvent>>(initialUIState, box) with
+        
+        override this.receiveAndEmit(inQueue: EventQueue<_>)(outQueue: EventQueue<_>)(state: 'uiState) =
+            
+            let mutable updatedState = state
+        
+            for event in inQueue.read() do
+                match event with
+                | SceneEvent _ as event -> outQueue.push(event)
+                | AppEvent _ as event -> outQueue.push(event)
+                | UIEvent _ as event -> updatedState <- this.handleEvent(event)(updatedState)
+                
+            updatedState
+                
+        
+        
+   
