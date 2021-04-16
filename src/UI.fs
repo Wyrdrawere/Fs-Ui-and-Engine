@@ -87,16 +87,3 @@ type UI<'appState, 'uiState, 'globalEvent, 'localEvent>(initialUIState: 'uiState
             this.render(spriteBatch)
         | None -> ()
         
-[<AbstractClass>]
-type SceneUI<'appState, 'uiState, 'sceneEvent, 'appEvent, 'uiEvent>(initialUIState: 'uiState, box: Box) =
-    
-    inherit UI<'appState, 'uiState, GameEvent<'sceneEvent, 'appEvent, 'uiEvent>, 'uiEvent>(initialUIState, box) with
-        
-        override this.localize(gameEvent: GameEvent<_,_,_>) =
-            match gameEvent with
-            | UIEvent(event) -> Some(event)
-            | _ -> None
-                
-        
-        
-   

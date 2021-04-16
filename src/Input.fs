@@ -16,8 +16,3 @@ type EventQueue<'event>() =
     
     member this.read() = List.rev queue
     
-type GameEvent<'sceneEvent, 'appEvent, 'uiEvent> =
-    | SceneEvent of 'sceneEvent
-    | AppEvent of 'appEvent
-    | UIEvent of 'uiEvent
-    
