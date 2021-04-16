@@ -6,19 +6,18 @@ open Engine.System
 open Microsoft.Xna.Framework
 open Microsoft.Xna.Framework.Graphics
 
-//todo: maybe make inEvent/outEvent or something, to allow for defintion of translate/extract function and make sceneUI less dumb
 [<AbstractClass>]
-type UI<'appState, 'uiState, 'event>(initialUIState: 'uiState, box: Box) =
+type UI<'appState, 'uiState, 'globalEvent, 'localEvent>(initialUIState: 'uiState, box: Box) =
      
-    let mutable eventQueue: EventQueue<'event> = EventQueue()
+    let mutable eventQueue: EventQueue<'globalEvent> = EventQueue()
     let mutable currentState = initialUIState
     
     let mutable layouts = Map.empty
     let mutable currentLayout = 0
       
-    member val Widget: IWidget<'event> =
+    member val Widget: IWidget<'globalEvent> =
         Panel(WsPanel.New([]))
-        :> IWidget<'event> with get, set
+        :> IWidget<'globalEvent> with get, set
     
     member this.getState() =
         currentState
@@ -34,12 +33,12 @@ type UI<'appState, 'uiState, 'event>(initialUIState: 'uiState, box: Box) =
             layouts <- layouts |> Map.add(key)(layout)
             this.Widget.passBox(layout)
             
-    member this.pushEvent(event: 'event) =
+    member this.pushEvent(event: 'globalEvent) =
         eventQueue.push(event)
             
     abstract synchronize: 'appState -> 'uiState -> 'uiState  
-    abstract handleEvent: 'event -> 'uiState -> 'uiState
-    abstract receiveAndEmit: EventQueue<'event> -> EventQueue<'event> -> 'uiState -> 'uiState
+    abstract handleEvent: 'localEvent -> 'uiState -> 'uiState
+    abstract localize: 'globalEvent -> 'localEvent option
     
     abstract drawExtra: SpriteBatch -> 'uiState -> Unit
     default this.drawExtra(_: SpriteBatch)(_: 'uiState) = ()
@@ -48,15 +47,21 @@ type UI<'appState, 'uiState, 'event>(initialUIState: 'uiState, box: Box) =
     default this.handleInput(input: Input) =
         this.Widget.receive(input)(eventQueue)
         
-    abstract update: 'appState * GameTime * EventQueue<'event> -> unit
-    default this.update(appState: 'appState, gameTime: GameTime, appQueue: EventQueue<'event>) =
+    abstract update: 'appState * GameTime * EventQueue<'globalEvent> -> unit
+    default this.update(appState: 'appState, gameTime: GameTime, appQueue: EventQueue<'globalEvent>) =
         
         currentState <- this.synchronize(appState)(currentState)
         
         this.updateLayout()
         this.Widget.update(gameTime)(eventQueue)
         
-        currentState <- this.receiveAndEmit(eventQueue)(appQueue)(currentState)
+        for globalEvent in eventQueue.read() do
+            match this.localize(globalEvent) with
+            | Some(event) ->
+                currentState <- this.handleEvent(event)(currentState)
+            | None ->
+                appQueue.push(globalEvent)
+                
         
         eventQueue <- EventQueue()
         
@@ -75,19 +80,12 @@ type UI<'appState, 'uiState, 'event>(initialUIState: 'uiState, box: Box) =
 [<AbstractClass>]
 type SceneUI<'appState, 'uiState, 'sceneEvent, 'appEvent, 'uiEvent>(initialUIState: 'uiState, box: Box) =
     
-    inherit UI<'appState, 'uiState, GameEvent<'sceneEvent, 'appEvent, 'uiEvent>>(initialUIState, box) with
+    inherit UI<'appState, 'uiState, GameEvent<'sceneEvent, 'appEvent, 'uiEvent>, 'uiEvent>(initialUIState, box) with
         
-        override this.receiveAndEmit(inQueue: EventQueue<_>)(outQueue: EventQueue<_>)(state: 'uiState) =
-            
-            let mutable updatedState = state
-        
-            for event in inQueue.read() do
-                match event with
-                | SceneEvent _ as event -> outQueue.push(event)
-                | AppEvent _ as event -> outQueue.push(event)
-                | UIEvent _ as event -> updatedState <- this.handleEvent(event)(updatedState)
-                
-            updatedState
+        override this.localize(gameEvent: GameEvent<_,_,_>) =
+            match gameEvent with
+            | UIEvent(event) -> Some(event)
+            | _ -> None
                 
         
         
