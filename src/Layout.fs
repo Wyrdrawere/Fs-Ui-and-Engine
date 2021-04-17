@@ -248,7 +248,7 @@ module Layout =
                          parameters)
             let alignedBoxes =
                 List.zip(boxes)(children) |> List.map(fun (box, child) -> alignInside(box, child.Content))
-            Node(nodeBox, List.zip(alignedBoxes)(children) |> List.map(fun (box, child) -> fitPartition(box, child)))
+            Node(nodeBox, List.zip(alignedBoxes)(children) |> List.map(fitPartition))
                 
     let calculate(boundingBox: Box, lTree: Tree<LayoutParameters>): Tree<Box> =
         fitPartition(boundingBox, adjustSizes(lTree))

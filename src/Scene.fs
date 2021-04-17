@@ -35,16 +35,21 @@ type Scene<'appState, 'uiState, 'nexusEvent, 'appEvent, 'uiEvent, 'uiKey when 'u
         
     member this.hasUI() =
         ui |> Option.isSome
-        
-    //todo: think about changing this to pushSceneEvent and adding pushAppEvent, then gameState wont have to implement own queue    
-    member this.pushEvent(event: SceneEvent<'uiKey>) =
+          
+    member this.pushSceneEvent(event: SceneEvent<'uiKey>) =
         eventQueue.push(SceneEvent(event))
+    
+    member this.pushAppEvent(event: 'appEvent) =
+        eventQueue.push(AppEvent(event))
     
     abstract update: GameTime -> 'appState -> 'appState
     
     abstract handleInput: Input -> 'appState -> 'appState
     
     abstract handleEvent: 'appEvent -> 'appState -> 'appState
+    
+    abstract uiLocksInput: 'appState -> bool
+    default this.uiLocksInput(_: 'appState) = true
     
     //todo: needs some initializing function in case it doesn't get overridden. also signature, wtf
     abstract chooseUI: 
@@ -93,13 +98,11 @@ type Scene<'appState, 'uiState, 'nexusEvent, 'appEvent, 'uiEvent, 'uiKey when 'u
             eventQueue <- EventQueue()
                 
         override this.receive(input: Input) =
-            //todo: same as before, this needs a way to decide if both ui and state get input
-            //todo: maybe a function 'state -> bool, to preserve generality, with default "false"
-            match ui with
-            | Some(ui) ->
-                ui.handleInput(input) 
-            | None ->
-                currentState <- currentState |> this.handleInput(input)
+            
+            match ui |> Option.map(fun ui -> ui.handleInput(input)) with
+            | Some _ when this.uiLocksInput(currentState) -> ()
+            | _ -> currentState <- currentState |> this.handleInput(input)
+            
             
         override this.draw(spriteBatch) =
             this.render(spriteBatch)(currentState)

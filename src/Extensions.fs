@@ -36,3 +36,13 @@ module Extensions =
         
         let fillWithNew<'T>(elementFunction: unit -> 'T, length)(list: 'T List) =
             list |> List.rev |> fillWithNewHelper(elementFunction, length) |> List.rev
+    
+    type System.Math with
+        
+        static member roundByBase(value: int, base_: int) =
+            if not (value / base_ = 0)
+            then value + (base_ - value % base_)  
+            else
+                if value > base_
+                then value
+                else base_

@@ -4,7 +4,6 @@ namespace Engine.State
 
 open Engine.System
 open Microsoft.Xna.Framework
-open Microsoft.Xna.Framework.Content
 open Microsoft.Xna.Framework.Graphics
 
 //todo: move MainGame in engine and make it a new type initialized by giving a nexus

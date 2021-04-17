@@ -14,7 +14,6 @@ type WsBase() =
     
     member val LastBox: Box = Box.Initial with get, set
     
-//todo: remove the event triple and replace it with just one event
 type IWidget<'event> =
     inherit Element
     
@@ -75,6 +74,7 @@ type Widget<'widgetState, 'event when 'widgetState :> WsBase>(state: 'widgetStat
       
 //todo: implementations from here. split and move to folder when replacement is done        
         
+//todo: larger usability change with state parameters. coupled with element
 type WsPanel<'event>() =
     
     inherit WsBase()
@@ -343,19 +343,14 @@ type Button<'event>(state: WsButton<'event>) =
                 | LabelButton(button) -> button
                 | CaptionButton(button) -> button :> WsLabelButton<'event>
             
-            let mutable clicked = false
-            let click() =
-                if not clicked
-                then
-                    clicked <- true //todo: check if still needed
-                    for event in state.OnClick do
-                        queue.push(event)
-            
             match input with
             | KeyPressed(Keys.Enter) when not (state.OnClick |> List.isEmpty) ->
                 state.Pressed <- true
             | KeyReleased(Keys.Enter) ->
-                if state.Pressed then click()
+                if state.Pressed
+                then
+                    for event in state.OnClick do
+                        queue.push(event)
                 state.Pressed <- false
             | _ -> ()
            
@@ -378,11 +373,7 @@ type Button<'event>(state: WsButton<'event>) =
                         
 type MenuInputMode =
     | Direct
-    | Locking of bool
     | AsPanel
-    // Locking NOT stackable, at least until custom input mapping happens. bool describes if currently locked
-    //todo: locking really requires sensible cursor logic now. also rework, has tons of issues like this
-    //todo: remove, probably not needed
         
 type WsMenu<'event>() =
     
@@ -476,16 +467,6 @@ type WsMenu<'event>() =
 type Menu<'event>(state: WsMenu<'event>) =
     inherit Widget<WsMenu<'event>, 'event>(state) with
         
-        //todo: find the right place for this
-        //todo: right place is probably extension method for System.Math
-        let roundByBase(value: int, base_: int) =
-            if not (value / base_ = 0)
-            then value + (base_ - value % base_)  
-            else
-                if value > base_
-                then value
-                else base_
-          
         override this.initBox(tree: Tree<Box>) =
             state.LastBox <- tree.Content
             match tree with
@@ -552,58 +533,17 @@ type Menu<'event>(state: WsMenu<'event>) =
                         state.CursorX <- state.CursorX + 1
                 | _ -> ()
                 
-            
-            //todo: rewrite as fold with index = acc, so end result is unit instead of unit list
-            //todo: update: this whole section needs an update anyways       
-            let passToChildren(cursorIndex: int option) =
-                
-                state.Children
-                |> List.fold(fun index child ->
-                    if Some index = cursorIndex
-                    then child.receive(input)(queue)
-                    else ()
-                    index + 1
-                    )(0)
-                |> ignore
-                
-            
-            let lockUnlock(key: Keys) =
-                let mutable tmp = false
-                state.InputMode <-
-                    match state.InputMode with
-                    | Direct -> Direct
-                    | Locking(value) ->
-                        match input with
-                        | KeyReleased(releasedKey) when key = releasedKey ->
-                            tmp <- not value
-                            Locking(not value)
-                        | _ ->
-                            tmp <- value
-                            Locking(value)
-                    | AsPanel -> AsPanel     
-                tmp
-              
             if state.Active
             then
                 match state.InputMode with
-                | Direct ->
-                    handleScroll()
-                    passToChildren(Some(state.Index))
-                | Locking(true) ->
-                    if not(lockUnlock(Keys.Back))
-                    then
-                        passToChildren(Some(state.Index))
-                | Locking(false) ->
-                    passToChildren(None)
-                    if not(lockUnlock(Keys.Enter))
-                    then
-                        handleScroll()
-                | AsPanel ->
-                    passToChildren(Some(state.Index))
-            else passToChildren(None)
+                | Direct -> handleScroll()    
+                | AsPanel -> ()
+                
+                state.Children
+                |> List.tryItem(state.Index)
+                |> Option.map(fun child -> child.receive(input)(queue))
+                |> ignore
                     
-                    
-            //todo: think about menu modes
             //todo: make clear which direction is scrollable
                 
         override this.view() =
@@ -624,28 +564,29 @@ type Menu<'event>(state: WsMenu<'event>) =
                     items
             let cursorIndex = state.Index
             
-            let menuPanel(takeMain: int, dropMain: int, mainSize: int, takeOff: int, dropOff: int, offSize: int)(children: IWidget<'event> list) =
+            let menuPanel(takeMain: int, dropMain: int, takeOff: int, dropOff: int)(children: IWidget<'event> list) =
+                
+                let depth =
+                    match state.OffScrollDepth with
+                    | Some(depth) when depth > takeOff -> depth
+                    | _ -> takeOff
+                
                 children
                 |> List.map(fun child -> itemPanel [child.view()])
-                |> List.fill(emptyStructural [ SizeMode(Fill)], roundByBase(children.Length, mainSize * offSize))
+                |> List.fill(emptyStructural [ SizeMode(Fill)], System.Math.roundByBase(children.Length, takeMain * depth))
                 |> List.mapi(fun index elem -> if index = cursorIndex && state.DisplayCursor then withCursor(elem) else elem)
-                |> List.chunkBySize(offSize)
+                |> List.chunkBySize(depth)
                 |> List.map(fun cs -> cs |> List.skip(dropOff) |> List.take(takeOff))
                 |> List.skip(dropMain)
                 |> List.take(takeMain)
                 |> List.map(itemPanel)
                 |> panel state.Parameters
                                  
-            //todo: now that this works, refactor                        
-            match (state.Orientation, state.OffScrollDepth) with
-            | (Horizontal, Some depth) when depth > state.Rows ->
-                menuPanel(state.Cols, state.AnchorX, state.Cols, state.Rows, state.AnchorY, depth)(state.Children)
-            | (Horizontal, _) ->
-                menuPanel(state.Cols, state.AnchorX, state.Cols, state.Rows, state.AnchorY, state.Rows)(state.Children)
-            | (Vertical, Some depth) when depth > state.Cols ->
-                menuPanel(state.Rows, state.AnchorY, state.Rows, state.Cols, state.AnchorX, depth)(state.Children)
-            | (Vertical, _) ->
-                menuPanel(state.Rows, state.AnchorY, state.Rows, state.Cols, state.AnchorX, state.Cols)(state.Children)
+            match state.Orientation with
+            | Horizontal ->
+                menuPanel(state.Cols, state.AnchorX, state.Rows, state.AnchorY)(state.Children)
+            | Vertical ->
+                menuPanel(state.Rows, state.AnchorY, state.Cols, state.AnchorX)(state.Children)
                 
 //todo: do NOT use, will get removed/replaced at some point      
 [<AbstractClass>]
@@ -656,7 +597,6 @@ type MenuBuilder<'input, 'event>(menuState: WsMenu<'event>) =
     
     member val MenuState = menuState with get
     
-    //todo: being able to call makeButtons is confusing. make it a passed parameter instead, could allow for builders to be more flexible too
     abstract makeButtons: 'input -> WsButton<'event> list
     
     member this.build() =
