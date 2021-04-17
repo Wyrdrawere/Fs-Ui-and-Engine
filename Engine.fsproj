@@ -16,7 +16,9 @@
       <Compile Include="src\Element.fs" />
       <Compile Include="src\Widget.fs" />
       <Compile Include="src\UI.fs" />
-      <Compile Include="src\State.fs" />
+      <Compile Include="src\SceneUI.fs" />
+      <Compile Include="src\Scene.fs" />
+      <Compile Include="src\Nexus.fs" />
     </ItemGroup>
 
     <ItemGroup>

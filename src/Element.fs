@@ -9,19 +9,10 @@ open Microsoft.Xna.Framework.Graphics
 type Element =
     abstract LayoutNode: Tree<LayoutParameters> 
     abstract draw: SpriteBatch -> Tree<Box> -> Unit
-
-    //todo: copies parts of draw. at least make draw use this then, if it's really necessary to have it
-    //todo: does more than copy unfortunately, but there has to be something to make this less absurd/out of place
     abstract passBox: Tree<Box> -> Unit
     
 module Element =
-
-    //todo: find better way to do this (GMap might do it)
-    //as of now, these settings are all distinct and only map to one specific basic element.
-    //as long as this is true, combination elements work well with this, otherwise some split/merge needs to happen 
-    //todo: the case above has happened, some settings now work on multiple elements, captions are fucked now
-    //todo: with new widgets this might not be a bad thing, captions can be done there.
-    //todo: fill in fitting/missing settings in the elements, then this is done
+    //todo: find unified settings/parameter concept for this and widget
     type Settings =
         { width: int
           height: int
@@ -35,11 +26,11 @@ module Element =
           alignmentY: Alignment
           border: int
           orientation: Orientation
-          backgroundColor: Color //todo: split colors from layout settings. maybe rework this whole thing
+          backgroundColor: Color 
           borderColor: Color
           textColor: Color
           font: string //path to font
-          scaleX: float32 //todo: find way to make scale work with fontsize, then entire elementtrees can theoretically be scaled
+          scaleX: float32 
           scaleY: float32 }
         
     let mutable DefaultSettings =
@@ -61,8 +52,7 @@ module Element =
           font = AssetLoader.defaultFont
           scaleX = 1.0f
           scaleY = 1.0f }
-        
-    //todo: maybe move this outside model. could be nice when using widgets, so module doesn't have to be opened      
+           
     type Parameter =
         | Width of int
         | Height of int
@@ -281,8 +271,9 @@ module Element =
                           orientation = Horizontal
                         }
                 override this.draw(_: SpriteBatch)(_: Tree<Box>) = ()
-                override this.passBox(boxTree: Tree<Box>) = ()
+                override this.passBox(_: Tree<Box>) = ()
     
+    //todo: make names not clash with widget. also remove unneeded elements from here, use just basics here 
     let panel(parameters: Parameter List)(content: Element List) =
         PanelElement(parametersToSettings(DefaultSettings, parameters), content) :> Element
         
@@ -302,8 +293,6 @@ module Element =
     let emptyStructural(parameters: Parameter List) =
         EmptyElement(parametersToSettings(DefaultSettings, parameters)) :> Element
          
-    //todo: need better way to represent cursor. maybe even object that gets passed through widgettree
-    //todo: place probably found, only needs implementation now
     let withCursor(innerElement: Element) =
         { new Element with
             override this.LayoutNode = innerElement.LayoutNode

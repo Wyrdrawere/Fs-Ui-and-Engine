@@ -10,33 +10,31 @@ open Microsoft.Xna.Framework.Input
 open Element
 open Engine.Extensions
   
-  
 type WsBase() =
     
     member val LastBox: Box = Box.Initial with get, set
     
-    
-type IWidget<'appEvent, 'uiEvent> =
+type IWidget<'event> =
     inherit Element
     
     abstract initBox: Tree<Box> -> Unit
     abstract initView: Unit -> Element
     abstract lastBox: Unit -> Box
-    abstract update: GameTime -> EventQueue<Event<'appEvent, 'uiEvent>> -> Unit
-    abstract receive: EventQueue<Input> -> EventQueue<Event<'appEvent, 'uiEvent>> -> Unit
+    abstract update: GameTime -> EventQueue<'event> -> Unit
+    abstract receive: Input -> EventQueue<'event> -> Unit
     abstract view: Unit -> Element
     
 [<AbstractClass>]        
-type Widget<'widgetState, 'appEvent, 'uiEvent when 'widgetState :> WsBase>(state: 'widgetState) =
+type Widget<'widgetState, 'event when 'widgetState :> WsBase>(state: 'widgetState) =
         
     
-    abstract update: GameTime -> EventQueue<Event<'appEvent, 'uiEvent>> -> Unit
-    abstract receive: EventQueue<Input> -> EventQueue<Event<'appEvent, 'uiEvent>> -> Unit
+    abstract update: GameTime -> EventQueue<'event> -> Unit
+    abstract receive: Input -> EventQueue<'event> -> Unit
     abstract view: Unit -> Element
     
     
     member this.asWidget() =
-        this :> IWidget<'appEvent, 'uiEvent>
+        this :> IWidget<'event>
         
     member this.setBox(layout: Tree<Box>) =
         state.LastBox <- layout.Content
@@ -53,7 +51,7 @@ type Widget<'widgetState, 'appEvent, 'uiEvent when 'widgetState :> WsBase>(state
             state.LastBox <- layout.Content
             this.view().draw(spriteBatch)(layout)
                 
-    interface IWidget<'appEvent, 'uiEvent> with
+    interface IWidget<'event> with
         
         override this.initBox(tree: Tree<Box>) =
             this.initBox(tree)
@@ -61,9 +59,9 @@ type Widget<'widgetState, 'appEvent, 'uiEvent when 'widgetState :> WsBase>(state
             state.LastBox
         override this.initView() =
             this.initView()
-        override this.update(gameTime: GameTime)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
+        override this.update(gameTime: GameTime)(queue: EventQueue<'event>) =
             this.update(gameTime)(queue)
-        override this.receive(input: EventQueue<Input>)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
+        override this.receive(input: Input)(queue: EventQueue<'event>) =
             this.receive(input)(queue)
         override this.view() =
             this :> Element
@@ -76,11 +74,12 @@ type Widget<'widgetState, 'appEvent, 'uiEvent when 'widgetState :> WsBase>(state
       
 //todo: implementations from here. split and move to folder when replacement is done        
         
-type WsPanel<'appEvent, 'uiEvent>() =
+//todo: larger usability change with state parameters. coupled with element
+type WsPanel<'event>() =
     
     inherit WsBase()
     
-    member val Children: IWidget<'appEvent, 'uiEvent> list = [] with get, set
+    member val Children: IWidget<'event> list = [] with get, set
     
     member val Spacing = 2 with get, set
     member val Padding = 2 with get, set
@@ -102,13 +101,13 @@ type WsPanel<'appEvent, 'uiEvent>() =
           BorderColor(this.BorderColor) ]
     
     
-    static member New(children: IWidget<'appEvent, 'uiEvent> list) =
+    static member New(children: IWidget<'event> list) =
         let tmp = WsPanel()
         tmp.Children <- children
         tmp
         
-type Panel<'appEvent, 'uiEvent>(state: WsPanel<'appEvent, 'uiEvent>) =    
-    inherit Widget<WsPanel<'appEvent, 'uiEvent>, 'appEvent, 'uiEvent>(state) with
+type Panel<'event>(state: WsPanel<'event>) =    
+    inherit Widget<WsPanel<'event>, 'event>(state) with
         
         override this.initBox(tree: Tree<Box>) =
             state.LastBox <- tree.Content
@@ -121,11 +120,11 @@ type Panel<'appEvent, 'uiEvent>(state: WsPanel<'appEvent, 'uiEvent>) =
         override this.initView() =
             panel (state.Parameters) (state.Children |> List.map(fun child -> child.initView()))
                        
-        override this.update(gameTime: GameTime)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
+        override this.update(gameTime: GameTime)(queue: EventQueue<'event>) =
             for child in state.Children do
                 child.update(gameTime)(queue)
             
-        override this.receive(input: EventQueue<Input>)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
+        override this.receive(input: Input)(queue: EventQueue<'event>) =
             for child in state.Children do
                 child.receive(input)(queue)
               
@@ -156,16 +155,16 @@ type WsLabel() =
     
     
          
-type Label<'appEvent, 'uiEvent>(state: WsLabel) =    
-    inherit Widget<WsLabel, 'appEvent, 'uiEvent>(state) with
+type Label<'event>(state: WsLabel) =    
+    inherit Widget<WsLabel, 'event>(state) with
         
-        override this.update(_: GameTime)(_: EventQueue<Event<'appEvent, 'uiEvent>>) =
+        override this.update(_: GameTime)(_: EventQueue<'event>) =
             let newLength = state.Label.Length
             if not (newLength = state.LastLength)
             then
                 state.LastLength <- newLength
             
-        override this.receive(_: EventQueue<Input>)(_: EventQueue<Event<'appEvent, 'uiEvent>>) = ()
+        override this.receive(_: Input)(_: EventQueue<'event>) = ()
             
               
         override this.view() =
@@ -187,22 +186,22 @@ type WsImage() =
         tmp.Path <- path
         tmp
         
-type Image<'appEvent, 'uiEvent>(state: WsImage) =    
-    inherit Widget<WsImage, 'appEvent, 'uiEvent>(state) with
+type Image<'event>(state: WsImage) =    
+    inherit Widget<WsImage, 'event>(state) with
         
-        override this.update(_: GameTime)(_: EventQueue<Event<'appEvent, 'uiEvent>>) = ()
+        override this.update(_: GameTime)(_: EventQueue<'event>) = ()
             
-        override this.receive(_: EventQueue<Input>)(_: EventQueue<Event<'appEvent, 'uiEvent>>) = ()
+        override this.receive(_: Input)(_: EventQueue<'event>) = ()
               
         override this.view() =
             image state.Parameters state.Path
          
-type WsLabelButton<'appEvent, 'uiEvent>()=
+type WsLabelButton<'event>()=
     
     inherit WsBase()
     
     member val Label: string = "" with get, set
-    member val OnClick: Event<'appEvent, 'uiEvent> option = None with get, set
+    member val OnClick: 'event list = [] with get, set
     member val Hovered: bool = false with get, set
     member val Selected: bool = false with get, set
     member val Pressed: bool = false with get, set
@@ -256,7 +255,7 @@ type WsLabelButton<'appEvent, 'uiEvent>()=
         this.Selected <- false
         this.Pressed <- false
     
-    static member New(label: string, onClick: Event<'appEvent, 'uiEvent> option) =
+    static member New(label: string, onClick: 'event list) =
         let tmp = WsLabelButton()
         tmp.Label <- label
         tmp.OnClick <- onClick
@@ -266,9 +265,9 @@ type CaptionOrder =
     | TextFirst
     | ImageFirst
                             
-type WsCaptionButton<'appEvent, 'uiEvent>() =
+type WsCaptionButton<'event>() =
     
-    inherit WsLabelButton<'appEvent, 'uiEvent>()
+    inherit WsLabelButton<'event>()
     
     member val Path: string = "hexcolor" with get, set
     
@@ -300,18 +299,18 @@ type WsCaptionButton<'appEvent, 'uiEvent>() =
         [ Scale(this.Scale) ]
           
     
-    static member New(label: string, path: string, onClick: Event<'appEvent, 'uiEvent> option) =
+    static member New(label: string, path: string, onClick: 'event list) =
         let tmp = WsCaptionButton()
         tmp.Label <- label
         tmp.Path <- path
         tmp.OnClick <- onClick
         tmp
         
-type ButtonMode<'appEvent, 'uiEvent> =
-    | LabelButton of WsLabelButton<'appEvent, 'uiEvent>
-    | CaptionButton of WsCaptionButton<'appEvent, 'uiEvent>
+type ButtonMode<'event> =
+    | LabelButton of WsLabelButton<'event>
+    | CaptionButton of WsCaptionButton<'event>
     
-type WsButton<'appEvent, 'uiEvent>(buttonMode: ButtonMode<'appEvent, 'uiEvent>) =
+type WsButton<'event>(buttonMode: ButtonMode<'event>) =
     inherit WsBase()
     
     member val buttonState = buttonMode with get
@@ -326,46 +325,35 @@ type WsButton<'appEvent, 'uiEvent>(buttonMode: ButtonMode<'appEvent, 'uiEvent>) 
             | LabelButton(button) -> button.LastBox <- value
             | CaptionButton(button) -> button.LastBox <- value
             
-    static member NewLabelButton(label: string, onClick: Event<'appEvent, 'uiEvent> option) =
+    static member NewLabelButton(label: string, onClick: 'event list) =
         WsButton(LabelButton(WsLabelButton.New(label, onClick)))
         
-    static member NewCaptionButton(label: string, path: string, onClick: Event<'appEvent, 'uiEvent> option) =
+    static member NewCaptionButton(label: string, path: string, onClick: 'event list) =
         WsButton(CaptionButton(WsCaptionButton.New(label, path, onClick)))
     
-type Button<'appEvent, 'uiEvent>(state: WsButton<'appEvent, 'uiEvent>) =    
-    inherit Widget<WsButton<'appEvent, 'uiEvent>, 'appEvent, 'uiEvent>(state) with
+type Button<'event>(state: WsButton<'event>) =    
+    inherit Widget<WsButton<'event>, 'event>(state) with
         
-        override this.update(_: GameTime)(_: EventQueue<Event<'appEvent, 'uiEvent>>) =
+        override this.update(_: GameTime)(_: EventQueue<'event>) =
             ()
             
-        override this.receive(input: EventQueue<Input>)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
+        override this.receive(input: Input)(queue: EventQueue<'event>) =
             let state =
                 match state.buttonState with
                 | LabelButton(button) -> button
-                | CaptionButton(button) -> button :> WsLabelButton<'appEvent, 'uiEvent>
+                | CaptionButton(button) -> button :> WsLabelButton<'event>
             
-            let mutable clicked = false
-            let click() =
-                if not clicked
-                then
-                    match state.OnClick with
-                    | Some event ->
-                        clicked <- true
-                        queue.push(event)
-                    | None -> ()
-            
-            //todo: buttons stay pressed even when switching to other button. that one gets pressed then, so half right. investigate and fix
-            //todo: removing delay stuff made it so that press gets removed on switch, but the other button does not become pressed
-            if input.read() |> List.contains(KeyPressed(Keys.Enter)) && state.OnClick |> Option.isSome
-            then
+            match input with
+            | KeyPressed(Keys.Enter) when not (state.OnClick |> List.isEmpty) ->
                 state.Pressed <- true
-            
-            if input.read() |> List.contains(KeyReleased(Keys.Enter))
-            then
+            | KeyReleased(Keys.Enter) ->
+                if state.Pressed
+                then
+                    for event in state.OnClick do
+                        queue.push(event)
                 state.Pressed <- false
-                click()
-            
-            
+            | _ -> ()
+           
             
         override this.view() =
             match state.buttonState with
@@ -385,13 +373,9 @@ type Button<'appEvent, 'uiEvent>(state: WsButton<'appEvent, 'uiEvent>) =
                         
 type MenuInputMode =
     | Direct
-    | Locking of bool
     | AsPanel
-    // Locking NOT stackable, at least until custom input mapping happens. bool describes if currently locked
-    //todo: locking really requires sensible cursor logic now. also rework, has tons of issues like this
-    //todo: remove, probably not needed
         
-type WsMenu<'appEvent, 'uiEvent>() =
+type WsMenu<'event>() =
     
     inherit WsBase()
       
@@ -399,7 +383,7 @@ type WsMenu<'appEvent, 'uiEvent>() =
     
     member val Cols: int = 0 with get, set
     
-    member val Children: IWidget<'appEvent, 'uiEvent> list = [] with get, set
+    member val Children: IWidget<'event> list = [] with get, set
     
     member val OffScrollDepth: int option = None with get, set
      
@@ -472,7 +456,7 @@ type WsMenu<'appEvent, 'uiEvent>() =
         | (Vertical, _) -> 
             (this.AnchorY + this.CursorY) * this.Cols + this.AnchorX + this.CursorX
             
-    static member New(rows: int, cols: int, children: IWidget<'appEvent, 'uiEvent> list, ?offScrollDepth: int) =
+    static member New(rows: int, cols: int, children: IWidget<'event> list, ?offScrollDepth: int) =
         let tmp = WsMenu()
         tmp.Rows <- rows
         tmp.Cols <- cols
@@ -480,19 +464,9 @@ type WsMenu<'appEvent, 'uiEvent>() =
         tmp.Children <- children
         tmp
         
-type Menu<'appEvent, 'uiEvent>(state: WsMenu<'appEvent, 'uiEvent>) =
-    inherit Widget<WsMenu<'appEvent, 'uiEvent>, 'appEvent, 'uiEvent>(state) with
+type Menu<'event>(state: WsMenu<'event>) =
+    inherit Widget<WsMenu<'event>, 'event>(state) with
         
-        //todo: find the right place for this
-        //todo: right place is probably extension method for System.Math
-        let roundByBase(value: int, base_: int) =
-            if not (value / base_ = 0)
-            then value + (base_ - value % base_)  
-            else
-                if value > base_
-                then value
-                else base_
-          
         override this.initBox(tree: Tree<Box>) =
             state.LastBox <- tree.Content
             match tree with
@@ -505,21 +479,15 @@ type Menu<'appEvent, 'uiEvent>(state: WsMenu<'appEvent, 'uiEvent>) =
         override this.initView() =
             panel state.Parameters (state.Children |> List.map(fun child -> child.initView())) 
           
-        override this.update(gameTime: GameTime)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
+        override this.update(gameTime: GameTime)(queue: EventQueue<'event>) =
             if state.Active
             then
                 for child in state.Children do
                     child.update(gameTime)(queue)
             
-        override this.receive(input: EventQueue<Input>)(queue: EventQueue<Event<'appEvent, 'uiEvent>>) =
+        override this.receive(input: Input)(queue: EventQueue<'event>) =
             let handleScroll() =
                 
-                if input.read() |> List.contains(KeyPressed(Keys.Up)) && state.AnchorY + state.CursorY > 0 
-                then
-                    if state.CursorY > 0
-                    then state.CursorY <- state.CursorY - 1
-                    else state.AnchorY <- state.AnchorY - 1
-                    
                 let maxY =
                     match (state.Orientation, state.OffScrollDepth) with
                     | (Horizontal, Some(depth)) ->
@@ -530,21 +498,7 @@ type Menu<'appEvent, 'uiEvent>(state: WsMenu<'appEvent, 'uiEvent>) =
                         state.Rows
                     | (Vertical, None) ->
                         int <| System.Math.Ceiling ((float state.Children.Length) / (float state.Cols))
-                                             
-                if input.read() |> List.contains(KeyPressed(Keys.Down)) && state.AnchorY + state.CursorY < maxY - 1
-                then
-                    if state.CursorY = state.Rows - 1
-                    then
-                        state.AnchorY <- state.AnchorY + 1
-                    else
-                        state.CursorY <- state.CursorY + 1
-                    
-                if input.read() |> List.contains(KeyPressed(Keys.Left)) && state.AnchorX + state.CursorX > 0 
-                then
-                    if state.CursorX > 0
-                    then state.CursorX <- state.CursorX - 1
-                    else state.AnchorX <- state.AnchorX - 1
-                     
+                        
                 let maxX =
                     match (state.Orientation, state.OffScrollDepth) with
                     | (Horizontal, Some(depth)) ->
@@ -555,64 +509,41 @@ type Menu<'appEvent, 'uiEvent>(state: WsMenu<'appEvent, 'uiEvent>) =
                         int <| System.Math.Ceiling ((float state.Children.Length) / (float state.Rows))
                     | (Vertical, None) ->
                         state.Cols
-                        
-                        
-                if input.read() |> List.contains(KeyPressed(Keys.Right)) && state.AnchorX + state.CursorX < maxX - 1
-                then
+                
+                match input with
+                | KeyPressed(Keys.Up) when state.AnchorY + state.CursorY > 0 ->
+                    if state.CursorY > 0
+                    then state.CursorY <- state.CursorY - 1
+                    else state.AnchorY <- state.AnchorY - 1
+                | KeyPressed(Keys.Down) when state.AnchorY + state.CursorY < maxY - 1 ->
+                    if state.CursorY = state.Rows - 1
+                    then
+                        state.AnchorY <- state.AnchorY + 1
+                    else
+                        state.CursorY <- state.CursorY + 1
+                | KeyPressed(Keys.Left) when state.AnchorX + state.CursorX > 0 ->
+                    if state.CursorX > 0
+                    then state.CursorX <- state.CursorX - 1
+                    else state.AnchorX <- state.AnchorX - 1
+                | KeyPressed(Keys.Right) when state.AnchorX + state.CursorX < maxX - 1 ->
                     if state.CursorX = state.Cols - 1
                     then
                         state.AnchorX <- state.AnchorX + 1
                     else
                         state.CursorX <- state.CursorX + 1
+                | _ -> ()
                 
-            
-            //todo: rewrite as fold with index = acc, so end result is unit instead of unit list
-            //todo: update: this whole section needs an update anyways       
-            let passToChildren(cursorIndex: int option) =
-                state.Children
-                |> List.mapi(fun index child ->
-                    match cursorIndex with
-                    | Some(cursor) when cursor = index -> child.receive(input)(queue)
-                    | _ -> child.receive(EventQueue())(queue))
-                |> ignore
-            
-            let lockUnlock(key: Keys) =
-                let mutable tmp = false
-                state.InputMode <-
-                    match state.InputMode with
-                    | Direct -> Direct
-                    | Locking(value) ->
-                        if input.read() |> List.contains(KeyReleased(key))
-                        then
-                            tmp <- not value
-                            Locking(not value)
-                        else
-                            tmp <- value
-                            Locking(value)
-                    | AsPanel -> AsPanel     
-                tmp
-              
             if state.Active
             then
                 match state.InputMode with
-                | Direct ->
-                    handleScroll()
-                    passToChildren(Some(state.Index))
-                | Locking(true) ->
-                    if not(lockUnlock(Keys.Back))
-                    then
-                        passToChildren(Some(state.Index))
-                | Locking(false) ->
-                    passToChildren(None)
-                    if not(lockUnlock(Keys.Enter))
-                    then
-                        handleScroll()
-                | AsPanel ->
-                    passToChildren(Some(state.Index))
-            else passToChildren(None)
+                | Direct -> handleScroll()    
+                | AsPanel -> ()
+                
+                state.Children
+                |> List.tryItem(state.Index)
+                |> Option.map(fun child -> child.receive(input)(queue))
+                |> ignore
                     
-                    
-            //todo: think about menu modes
             //todo: make clear which direction is scrollable
                 
         override this.view() =
@@ -633,43 +564,43 @@ type Menu<'appEvent, 'uiEvent>(state: WsMenu<'appEvent, 'uiEvent>) =
                     items
             let cursorIndex = state.Index
             
-            let menuPanel(takeMain: int, dropMain: int, mainSize: int, takeOff: int, dropOff: int, offSize: int)(children: IWidget<'appEvent, 'uiEvent> list) =
+            let menuPanel(takeMain: int, dropMain: int, takeOff: int, dropOff: int)(children: IWidget<'event> list) =
+                
+                let depth =
+                    match state.OffScrollDepth with
+                    | Some(depth) when depth > takeOff -> depth
+                    | _ -> takeOff
+                
                 children
                 |> List.map(fun child -> itemPanel [child.view()])
-                |> List.fill(emptyStructural [ SizeMode(Fill)], roundByBase(children.Length, mainSize * offSize))
+                |> List.fill(emptyStructural [ SizeMode(Fill)], System.Math.roundByBase(children.Length, takeMain * depth))
                 |> List.mapi(fun index elem -> if index = cursorIndex && state.DisplayCursor then withCursor(elem) else elem)
-                |> List.chunkBySize(offSize)
+                |> List.chunkBySize(depth)
                 |> List.map(fun cs -> cs |> List.skip(dropOff) |> List.take(takeOff))
                 |> List.skip(dropMain)
                 |> List.take(takeMain)
                 |> List.map(itemPanel)
                 |> panel state.Parameters
                                  
-            //todo: now that this works, refactor                        
-            match (state.Orientation, state.OffScrollDepth) with
-            | (Horizontal, Some depth) when depth > state.Rows ->
-                menuPanel(state.Cols, state.AnchorX, state.Cols, state.Rows, state.AnchorY, depth)(state.Children)
-            | (Horizontal, _) ->
-                menuPanel(state.Cols, state.AnchorX, state.Cols, state.Rows, state.AnchorY, state.Rows)(state.Children)
-            | (Vertical, Some depth) when depth > state.Cols ->
-                menuPanel(state.Rows, state.AnchorY, state.Rows, state.Cols, state.AnchorX, depth)(state.Children)
-            | (Vertical, _) ->
-                menuPanel(state.Rows, state.AnchorY, state.Rows, state.Cols, state.AnchorX, state.Cols)(state.Children)
+            match state.Orientation with
+            | Horizontal ->
+                menuPanel(state.Cols, state.AnchorX, state.Rows, state.AnchorY)(state.Children)
+            | Vertical ->
+                menuPanel(state.Rows, state.AnchorY, state.Cols, state.AnchorX)(state.Children)
                 
 //todo: do NOT use, will get removed/replaced at some point      
 [<AbstractClass>]
-type MenuBuilder<'input, 'appEvent, 'uiEvent>(menuState: WsMenu<'appEvent, 'uiEvent>) =
+type MenuBuilder<'input, 'event>(menuState: WsMenu<'event>) =
     
     let mutable stateCache: 'input option = None
-    let mutable buttons: WsButton<'appEvent, 'uiEvent> list = []
+    let mutable buttons: WsButton<'event> list = []
     
     member val MenuState = menuState with get
     
-    //todo: being able to call makeButtons is confusing. make it a passed parameter instead, could allow for builders to be more flexible too
-    abstract makeButtons: 'input -> WsButton<'appEvent, 'uiEvent> list
+    abstract makeButtons: 'input -> WsButton<'event> list
     
     member this.build() =
-        Menu(this.MenuState) :> IWidget<'appEvent, 'uiEvent>
+        Menu(this.MenuState) :> IWidget<'event>
     
     member this.updateButtons(appState: 'input) =
         stateCache <- Some(appState)
@@ -680,9 +611,9 @@ type MenuBuilder<'input, 'appEvent, 'uiEvent>(menuState: WsMenu<'appEvent, 'uiEv
             match stateCache with
             | Some(appState) -> this.makeButtons(appState)
             | None -> []
-        this.MenuState.Children <- newButtons |> List.map(fun button -> Button(button) :> IWidget<'appEvent, 'uiEvent>)
+        this.MenuState.Children <- newButtons |> List.map(fun button -> Button(button) :> IWidget<'event>)
         
-    member this.replaceAt(index: int, replacement: IWidget<'appEvent, 'uiEvent>) =
+    member this.replaceAt(index: int, replacement: IWidget<'event>) =
         this.MenuState.Children <-
             this.MenuState.Children
             |> List.mapi(fun buttonIndex button ->
@@ -690,7 +621,7 @@ type MenuBuilder<'input, 'appEvent, 'uiEvent>(menuState: WsMenu<'appEvent, 'uiEv
                 then replacement
                 else button)
     
-    member this.replaceCurrent(replacement: IWidget<'appEvent, 'uiEvent>) =
+    member this.replaceCurrent(replacement: IWidget<'event>) =
         this.replaceAt(this.MenuState.Index, replacement)
         
         
